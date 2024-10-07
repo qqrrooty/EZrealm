@@ -138,8 +138,8 @@ delete_forward() {
     local chosen_line=${lines[$((choice-1))]}
     local line_number=$(echo $chosen_line | cut -d ':' -f 1)
 
-    # 确定删除范围，从备注行（可能存在）开始，到下一个 [[endpoints]] 或文件末尾
-    local start_line=$((line_number-1)) # 从备注行开始
+    # 确定删除范围，从 [[endpoints]] 行开始，到下一个 [[endpoints]] 或文件末尾
+    local start_line=$line_number
     local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
     
     if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
@@ -161,6 +161,7 @@ delete_forward() {
 
     echo "转发规则及其备注已删除。"
 }
+
 
 
 # 查看转发规则
