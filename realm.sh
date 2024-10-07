@@ -185,8 +185,10 @@ add_forward() {
         read -p "请输入本地监听端口: " local_ip
         read -p "请输入需要转发的IP: " ip
         read -p "请输入需要转发端口: " port
+        read -p "请输入备注: " beizhu
         # 追加到config.toml文件
         echo "[[endpoints]]
+# $beizhu
 listen = \"0.0.0.0:$local_ip\"
 remote = \"$ip:$port\"" >> /root/realm/config.toml
         
