@@ -96,20 +96,6 @@ uninstall_realm() {
 delete_forward() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    local lines=($(grep -n 'remote =' /root/realm/config.toml)) # 搜索所有包含转发规则的行
-    if [ ${#lines[@]} -eq 0 ]; then
-        echo "没有发现任何转发规则。"
-        return
-    fi
-    local index=1
-    for line in "${lines[@]}"; do
-        echo "${index}. $(echo $line | cut -d '"' -f 2)" # 提取并显示端口信息
-        let index+=1
-    done
-
-delete_forward() {
-    echo "当前转发规则："
-    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
     
