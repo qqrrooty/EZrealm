@@ -1,4 +1,4 @@
-原仓库：https://github.com/Jaydooooooo/Port-forwarding/tree/main
+原仓库：https://github.com/Jaydooooooo/Port-forwarding
 
 1.更新realm至最新版本
 2.增加了定时重启
