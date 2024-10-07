@@ -6,6 +6,8 @@
 
 3.新增了本地端口自定义
 
+4.新增了转发备注
+
 国外机器
 
 wget https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh && chmod +x realm.sh && ./realm.sh
