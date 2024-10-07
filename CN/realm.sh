@@ -197,7 +197,7 @@ add_forward() {
         read -p "请输入本地监听端口: " local_port
         read -p "请输入需要转发的IP: " ip
         read -p "请输入需要转发端口: " port
-        read -p "请输入备注: " remark
+        read -p "请输入备注(非中文): " remark
         # 追加到config.toml文件
         echo "[[endpoints]]
 # 备注: $remark
