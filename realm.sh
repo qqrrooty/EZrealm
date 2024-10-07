@@ -201,6 +201,15 @@ cron_restart() {
 while true; do
     show_menu
     read -p "请选择一个选项: " choice
+    # 去掉输入中的空格
+    choice=$(echo $choice | tr -d '[:space:]')
+
+    # 检查输入是否为数字，并在有效范围内
+    if ! [[ "$choice" =~ ^[1-7]$ ]]; then
+        echo "无效选项: $choice"
+        continue
+    fi
+
     case $choice in
         1)
             deploy_realm
@@ -222,10 +231,7 @@ while true; do
             ;;
         7)
             cron_restart
-            ;;  # 这里加入第七个选项的处理
-        *)
-            echo "无效选项: $choice"
-            ;;
+            ;;  # 处理第7个选项
     esac
     read -p "按任意键继续..." key
 done
