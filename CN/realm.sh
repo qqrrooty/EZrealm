@@ -24,6 +24,7 @@ check_realm_service_status() {
 show_menu() {
     clear
     echo "欢迎使用realm一键转发脚本"
+    echo "realm版本v2.6.2"
     echo "修改by：Azimi"
     echo "================="
     echo "1. 部署realm环境"
