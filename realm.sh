@@ -92,7 +92,7 @@ uninstall_realm() {
     realm_status_color="\033[0;31m" # 红色
 }
 
-# 删除转发规则
+# 删除转发规则的函数
 delete_forward() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
@@ -103,12 +103,12 @@ delete_forward() {
     fi
     local index=1
     for line in "${lines[@]}"; do
-        local line_number=$(echo $line | cut -d ':' -f 1)  # 获取listen所在行的行号
-        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取listen的信息
-        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取remote的信息
+        local line_number=$(echo $line | cut -d ':' -f 1)  # 获取 listen 行的行号
+        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 listen 信息
+        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
         local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
 
-        echo "${index}. listen: ${listen_info}, remote: ${remote_info}"
+        echo "${index}. listen端口: ${listen_info}, remote: ${remote_info}"
         # 如果有备注，则显示备注
         if [ -n "$remark" ]; then
             echo "   备注: ${remark}"
@@ -134,9 +134,9 @@ delete_forward() {
     fi
 
     local chosen_line=${lines[$((choice-1))]} # 根据用户选择获取相应行
-    local line_number=$(echo $chosen_line | cut -d ':' -f 1) # 获取listen行号
+    local line_number=$(echo $chosen_line | cut -d ':' -f 1) # 获取 listen 行号
 
-    # 找到当前规则的[[endpoints]]所在行
+    # 找到当前规则的 [[endpoints]] 所在行
     local endpoints_line=$(grep -B 1 "^listen" /root/realm/config.toml | grep -n '^\[\[endpoints\]\]' | awk -F: -v line_number=$line_number '$1 < line_number {print $1}' | tail -n 1)
 
     # 如果没有找到[[endpoints]]行，说明格式可能有问题
@@ -145,7 +145,7 @@ delete_forward() {
         return
     fi
 
-    # 计算要删除的范围，从[[endpoints]]开始到remote结束
+    # 计算要删除的范围，从[[endpoints]]开始到 remote 行结束
     local start_line=$endpoints_line
     local end_line=$(($line_number + 1))
 
@@ -156,11 +156,12 @@ delete_forward() {
         start_line=$prev_line  # 如果有备注，从备注那一行开始删除
     fi
 
-    # 使用sed删除选中的转发规则和备注
+    # 使用 sed 删除选中的转发规则和备注
     sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
     echo "转发规则及其备注已删除。"
 }
+
 
 #查看转发规则
 show_all_conf() {
@@ -178,7 +179,7 @@ show_all_conf() {
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
         local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
 
-        echo "${index}. listen: ${listen_info}, remote: ${remote_info}"
+        echo "${index}. listen端口: ${listen_info}, remote: ${remote_info}"
         # 如果有备注，则显示备注
         if [ -n "$remark" ]; then
             echo "   备注: ${remark}"
@@ -190,27 +191,24 @@ show_all_conf() {
 # 添加转发规则
 add_forward() {
     while true; do
-        read -p "请输入本地端口: " local_port
-        read -p "请输入需要转发的IP: " ip
-        read -p "请输入需要转发的端口: " port
-        read -p "请输入该转发规则的备注(可选): " remark
+        read -p "请输入本地监听端口: " local_port
+        read -p "请输入需要转发的IP地址: " ip
+        read -p "请输入需要转发IP的端口: " port
+        read -p "请输入备注: " remark
 
-        # 如果用户输入了备注，则添加为注释
-        if [ -n "$remark" ]; then
-            echo "# 备注: $remark" >> /root/realm/config.toml
-        fi
-
-        # 追加到config.toml文件
-        echo "[[endpoints]]
+        # 追加到 config.toml 文件，包括备注
+        echo "# 备注: $remark
+[[endpoints]]
 listen = \"0.0.0.0:$local_port\"
 remote = \"$ip:$port\"" >> /root/realm/config.toml
-        
+
         read -p "是否继续添加(Y/N)? " answer
         if [[ $answer != "Y" && $answer != "y" ]]; then
             break
         fi
     done
 }
+
 
 # 启动服务
 start_service() {
