@@ -135,11 +135,13 @@ delete_forward() {
 
     # 确定删除范围，从当前 [[endpoints]] 开始到下一个 [[endpoints]] 或文件末尾
     local start_line=$line_number
-    local end_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '$1 > start {print $1; exit}')
 
-    if [ -z "$end_line" ]; then
-        # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
-        end_line=$(wc -l < /root/realm/config.toml)
+    if [ $choice -eq ${#lines[@]} ]; then
+        # 如果是最后一个 [[endpoints]]，只删除该块的内容，不删除其他内容
+        local end_line=$(wc -l < /root/realm/config.toml)
+    else
+        # 否则删除到下一个 [[endpoints]]
+        local end_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '$1 > start {print $1; exit}')
     fi
 
     # 使用 sed 删除指定行范围的内容
