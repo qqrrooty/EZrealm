@@ -26,17 +26,17 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "================="
     echo "1. 部署环境"
-    ————————————
+
     echo "2. 添加转发"
     echo "3. 查看转发"
     echo "4. 删除转发"
-    ————————————
+
     echo "5. 启动服务"
     echo "6. 停止服务"
-    ————————————
+
     echo "7. 一键卸载"
     echo "8. 定时任务"
-    ————————————
+
     echo "9. 退出脚本"
     echo "================="
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
