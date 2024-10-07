@@ -26,13 +26,18 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "================="
     echo "1. 部署环境"
+    ————————————
     echo "2. 添加转发"
-    echo "3. 删除转发"
-    echo "4. 启动服务"
-    echo "5. 停止服务"
-    echo "6. 一键卸载"
-    echo "7. 定时任务"
-    echo "8. 退出脚本"
+    echo "3. 查看转发"
+    echo "4. 删除转发"
+    ————————————
+    echo "5. 启动服务"
+    echo "6. 停止服务"
+    ————————————
+    echo "7. 一键卸载"
+    echo "8. 定时任务"
+    ————————————
+    echo "9. 退出脚本"
     echo "================="
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
@@ -129,6 +134,29 @@ delete_forward() {
     echo "转发规则已删除。"
 }
 
+#查看转发规则
+show_all_conf() {
+    echo "当前转发规则："
+    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
+    local lines=($(grep -n 'remote =' /root/realm/config.toml)) # 搜索所有包含转发规则的行
+    if [ ${#lines[@]} -eq 0 ]; then
+        echo "没有发现任何转发规则。"
+        return
+    else
+        local index=1
+        for line in "${lines[@]}"; do
+            echo "${index}. $(echo $line | cut -d '"' -f 2)" # 提取并显示端口信息
+            let index+=1
+    done
+    fi
+    
+    # 提示用户按任意键返回
+    read -n 1 -s -r -p "按任意键返回..."
+    echo
+    return
+}
+
+
 # 添加转发规则
 add_forward() {
     while true; do
@@ -209,7 +237,7 @@ while true; do
     choice=$(echo $choice | tr -d '[:space:]')
 
     # 检查输入是否为数字，并在有效范围内
-    if ! [[ "$choice" =~ ^[1-8]$ ]]; then
+    if ! [[ "$choice" =~ ^[1-9]$ ]]; then
         echo "无效选项: $choice"
         continue
     fi
@@ -222,21 +250,24 @@ while true; do
             add_forward
             ;;
         3)
-            delete_forward
+            show_all_conf
             ;;
         4)
-            start_service
+            delete_forward
             ;;
         5)
-            stop_service
+            start_service
             ;;
         6)
-            uninstall_realm
+            stop_service
             ;;
         7)
-            cron_restart
-            ;;  # 处理第7个选项
+            uninstall_realm
+            ;;
         8)
+            cron_restart
+            ;;  
+        9)
             echo "退出脚本。"  # 显示退出消息
             exit 0            # 退出脚本
             ;;
