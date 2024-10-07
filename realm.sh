@@ -107,6 +107,33 @@ delete_forward() {
         let index+=1
     done
 
+delete_forward() {
+    echo "当前转发规则："
+    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
+    # 搜索所有包含 listen 的行，表示转发规则的起始行
+    local lines=($(grep -n 'listen =' /root/realm/config.toml))
+    
+    if [ ${#lines[@]} -eq 0 ]; then
+        echo "没有发现任何转发规则。"
+        return
+    fi
+
+    local index=1
+    for line in "${lines[@]}"; do
+        # 获取 listen 和 remote 的行号
+        local line_number=$(echo $line | cut -d ':' -f 1)
+        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2) # 获取 listen 信息
+        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2) # 获取 remote 信息
+        
+        # 提取 listen 的端口，remote 的 IP 和端口
+        local listen_port=$(echo $listen_info | cut -d ':' -f 2)
+        local remote_ip_port=$remote_info
+
+        # 显示 listen 端口加上 remote 的 IP 和端口
+        echo "${index}. listen端口: ${listen_port}, remote: ${remote_ip_port}"
+        let index+=1
+    done
+
     echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
     read -p "选择: " choice
     if [ -z "$choice" ]; then
@@ -127,28 +154,47 @@ delete_forward() {
     local chosen_line=${lines[$((choice-1))]} # 根据用户选择获取相应行
     local line_number=$(echo $chosen_line | cut -d ':' -f 1) # 获取行号
 
-    # 计算要删除的范围，从listen开始到remote结束
+    # 确定删除范围，从 [[endpoints]] 开始到下一个 [[endpoints]] 或文件末尾
     local start_line=$line_number
-    local end_line=$(($line_number + 2))
+    local end_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '$1 > start {print $1; exit}')
+    
+    if [ -z "$end_line" ]; then
+        # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
+        end_line=$(wc -l < /root/realm/config.toml)
+    fi
 
-    # 使用sed删除选中的转发规则
+    # 使用 sed 删除指定行范围的内容
     sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
     echo "转发规则已删除。"
 }
 
+
 #查看转发规则
 show_all_conf() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    local lines=($(grep -n 'remote =' /root/realm/config.toml)) # 搜索所有包含转发规则的行
+    # 搜索所有包含 listen 的行，表示转发规则的起始行
+    local lines=($(grep -n 'listen =' /root/realm/config.toml))
+    
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
     fi
+
     local index=1
     for line in "${lines[@]}"; do
-        echo "${index}. $(echo $line | cut -d '"' -f 2)" # 提取并显示端口信息
+        # 获取 listen 和 remote 的行号
+        local line_number=$(echo $line | cut -d ':' -f 1)
+        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2) # 获取 listen 信息
+        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2) # 获取 remote 信息
+        
+        # 提取 listen 的端口，remote 的 IP 和端口
+        local listen_port=$(echo $listen_info | cut -d ':' -f 2)
+        local remote_ip_port=$remote_info
+
+        # 显示 listen 端口加上 remote 的 IP 和端口
+        echo "${index}. listen端口: ${listen_port}, remote: ${remote_ip_port}"
         let index+=1
     done
 }
