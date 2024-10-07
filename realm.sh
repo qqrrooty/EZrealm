@@ -26,17 +26,13 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "================="
     echo "1. 部署环境"
-
     echo "2. 添加转发"
     echo "3. 查看转发"
     echo "4. 删除转发"
-
     echo "5. 启动服务"
     echo "6. 停止服务"
-
     echo "7. 一键卸载"
     echo "8. 定时任务"
-
     echo "9. 退出脚本"
     echo "================="
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
@@ -135,25 +131,18 @@ delete_forward() {
 }
 
 #查看转发规则
-show_all_conf() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     local lines=($(grep -n 'remote =' /root/realm/config.toml)) # 搜索所有包含转发规则的行
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
-    else
-        local index=1
-        for line in "${lines[@]}"; do
-            echo "${index}. $(echo $line | cut -d '"' -f 2)" # 提取并显示端口信息
-            let index+=1
-    done
     fi
-    
-    # 提示用户按任意键返回
-    read -n 1 -s -r -p "按任意键返回..."
-    echo
-    return
+    local index=1
+    for line in "${lines[@]}"; do
+        echo "${index}. $(echo $line | cut -d '"' -f 2)" # 提取并显示端口信息
+        let index+=1
+    done
 }
 
 
