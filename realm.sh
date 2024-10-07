@@ -199,7 +199,6 @@ add_forward() {
 
         # 追加到config.toml文件
         echo "[[endpoints]]
-# 备注: $remark
 listen = \"0.0.0.0:$local_port\"
 remote = \"$ip:$port\"" >> /root/realm/config.toml
         
