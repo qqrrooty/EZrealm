@@ -153,6 +153,9 @@ delete_forward() {
     # 使用 sed 删除指定行范围的内容
     sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
+    # 检查并删除所有可能多余的 [[endpoints]] 块
+    sed -i '/^\[\[endpoints\]\]$/d' /root/realm/config.toml
+
     # 检查并删除可能多余的空行
     sed -i '/^\s*$/d' /root/realm/config.toml
 
