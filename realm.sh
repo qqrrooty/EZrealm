@@ -92,11 +92,11 @@ uninstall_realm() {
     realm_status_color="\033[0;31m" # 红色
 }
 
-# 删除转发规则的函数
+# 删除转发规则
 delete_forward() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    local lines=($(grep -n 'listen =' /root/realm/config.toml)) # 搜索所有包含listen的行
+    local lines=($(grep -n 'listen =' /root/realm/config.toml)) # 搜索所有包含 listen 的行
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
@@ -106,7 +106,7 @@ delete_forward() {
         local line_number=$(echo $line | cut -d ':' -f 1)  # 获取listen所在行的行号
         local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取listen的信息
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取remote的信息
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)  # 获取备注
+        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
 
         echo "${index}. listen: ${listen_info}, remote: ${remote_info}"
         # 如果有备注，则显示备注
@@ -134,11 +134,20 @@ delete_forward() {
     fi
 
     local chosen_line=${lines[$((choice-1))]} # 根据用户选择获取相应行
-    local line_number=$(echo $chosen_line | cut -d ':' -f 1) # 获取行号
+    local line_number=$(echo $chosen_line | cut -d ':' -f 1) # 获取listen行号
 
-    # 计算要删除的范围，从listen开始到remote结束
-    local start_line=$line_number
-    local end_line=$(($line_number + 2))
+    # 找到当前规则的[[endpoints]]所在行
+    local endpoints_line=$(grep -B 1 "^listen" /root/realm/config.toml | grep -n '^\[\[endpoints\]\]' | awk -F: -v line_number=$line_number '$1 < line_number {print $1}' | tail -n 1)
+
+    # 如果没有找到[[endpoints]]行，说明格式可能有问题
+    if [ -z "$endpoints_line" ]; then
+        echo "未能找到匹配的[[endpoints]]，请检查配置文件格式。"
+        return
+    fi
+
+    # 计算要删除的范围，从[[endpoints]]开始到remote结束
+    local start_line=$endpoints_line
+    local end_line=$(($line_number + 1))
 
     # 如果有备注，范围从备注开始
     local prev_line=$((start_line-1))
@@ -153,22 +162,21 @@ delete_forward() {
     echo "转发规则及其备注已删除。"
 }
 
-
 #查看转发规则
 show_all_conf() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    local lines=($(grep -n 'listen =' /root/realm/config.toml)) # 搜索所有包含listen的行
+    local lines=($(grep -n 'listen =' /root/realm/config.toml)) # 搜索所有包含 listen 的行
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
     fi
     local index=1
     for line in "${lines[@]}"; do
-        local line_number=$(echo $line | cut -d ':' -f 1)  # 获取listen所在行的行号
-        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取listen的信息
-        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取remote的信息
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)  # 获取备注
+        local line_number=$(echo $line | cut -d ':' -f 1)  # 获取 listen 行的行号
+        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 listen 信息
+        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
+        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
 
         echo "${index}. listen: ${listen_info}, remote: ${remote_info}"
         # 如果有备注，则显示备注
