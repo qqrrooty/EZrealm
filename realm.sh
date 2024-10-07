@@ -74,9 +74,10 @@ WantedBy=multi-user.target" > /etc/systemd/system/realm.service
 uninstall_realm() {
     systemctl stop realm
     systemctl disable realm
-    rm -f /etc/systemd/system/realm.service
+    rm -rf /etc/systemd/system/realm.service
     systemctl daemon-reload
     rm -rf /root/realm
+    rm -rf "$(pwd)"/realm.sh
     echo "realm已被卸载。"
     # 更新realm状态变量
     realm_status="未安装"
