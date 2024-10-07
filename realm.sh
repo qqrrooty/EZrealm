@@ -180,11 +180,12 @@ show_all_conf() {
 # 添加转发规则
 add_forward() {
     while true; do
-        read -p "请输入IP: " ip
-        read -p "请输入端口: " port
+        read -p "请输入本地监听端口: " local_ip
+        read -p "请输入需要转发的IP: " ip
+        read -p "请输入需要转发端口: " port
         # 追加到config.toml文件
         echo "[[endpoints]]
-listen = \"0.0.0.0:$port\"
+listen = \"0.0.0.0:$local_ip\"
 remote = \"$ip:$port\"" >> /root/realm/config.toml
         
         read -p "是否继续添加(Y/N)? " answer
