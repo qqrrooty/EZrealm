@@ -98,7 +98,7 @@ delete_forward() {
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
-
+    
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
@@ -136,33 +136,30 @@ delete_forward() {
         return
     fi
 
-    local chosen_line=${lines[$((choice-1))]} # 根据用户选择获取相应行
-    local line_number=$(echo $chosen_line | cut -d ':' -f 1) # 获取起始行号
+    local chosen_line=${lines[$((choice-1))]}
+    local line_number=$(echo $chosen_line | cut -d ':' -f 1)
 
-    # 确定删除范围，从当前 [[endpoints]] 开始到下一个 [[endpoints]] 或文件末尾
-    local start_line=$line_number
-
-    if [ $choice -eq ${#lines[@]} ]; then
-        # 如果是最后一个 [[endpoints]]，只删除该块的内容，不删除其他内容
-        local end_line=$(wc -l < /root/realm/config.toml)
-    else
-        # 否则删除到下一个 [[endpoints]]
-        local end_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '$1 > start {print $1; exit}')
+    # 确定删除范围，从备注行（可能存在）开始，到下一个 [[endpoints]] 或文件末尾
+    local start_line=$((line_number-1)) # 从备注行开始
+    local end_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '$1 > start {print $1; exit}')
+    
+    if [ -z "$end_line" ]; then
+        # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
+        end_line=$(wc -l < /root/realm/config.toml)
     fi
 
     # 使用 sed 删除指定行范围的内容
     sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
-    echo "转发规则已删除。"
+    echo "转发规则及其备注已删除。"
 }
 
 #查看转发规则
-show_all_conf() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
-
+    
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
