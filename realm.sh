@@ -108,10 +108,11 @@ delete_forward() {
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
         local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
 
-        echo "${index}. listen端口: ${listen_info}, remote: ${remote_info}"
-        # 如果有备注，则显示备注
+        # 在一行中显示备注、监听端口和远程地址信息
         if [ -n "$remark" ]; then
-            echo "   备注: ${remark}"
+            echo "${index}. 备注: ${remark}, listen: ${listen_info}, remote: ${remote_info}"
+        else
+            echo "${index}. listen: ${listen_info}, remote: ${remote_info}"
         fi
         let index+=1
     done
@@ -163,6 +164,7 @@ delete_forward() {
 }
 
 
+
 #查看转发规则
 show_all_conf() {
     echo "当前转发规则："
@@ -179,14 +181,16 @@ show_all_conf() {
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
         local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
 
-        echo "${index}. listen端口: ${listen_info}, remote: ${remote_info}"
-        # 如果有备注，则显示备注
+        # 在一行内显示备注、监听端口和远程IP信息
         if [ -n "$remark" ]; then
-            echo "   备注: ${remark}"
+            echo "${index}. 备注: ${remark}, listen: ${listen_info}, remote: ${remote_info}"
+        else
+            echo "${index}. listen: ${listen_info}, remote: ${remote_info}"
         fi
         let index+=1
     done
 }
+
 
 # 添加转发规则
 add_forward() {
