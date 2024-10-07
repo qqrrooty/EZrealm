@@ -31,6 +31,7 @@ show_menu() {
     echo "4. 启动服务"
     echo "5. 停止服务"
     echo "6. 一键卸载"
+    echo "7. 定时任务"
     echo "================="
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
@@ -156,6 +157,46 @@ start_service() {
 stop_service() {
     systemctl stop realm
     echo "realm服务已停止。"
+}
+
+# 定时任务
+cron_restart() {
+  echo -e "------------------------------------------------------------------"
+  echo -e "realm定时重启任务: "
+  echo -e "-----------------------------------"
+  echo -e "[1] 配置realm定时重启任务"
+  echo -e "[2] 删除realm定时重启任务"
+  echo -e "-----------------------------------"
+  read -p "请选择: " numcron
+  if [ "$numcron" == "1" ]; then
+    echo -e "------------------------------------------------------------------"
+    echo -e "gost定时重启任务类型: "
+    echo -e "-----------------------------------"
+    echo -e "[1] 每？小时重启"
+    echo -e "[2] 每日？点重启"
+    echo -e "-----------------------------------"
+    read -p "请选择: " numcrontype
+    if [ "$numcrontype" == "1" ]; then
+      echo -e "-----------------------------------"
+      read -p "每？小时重启: " cronhr
+      echo "0 0 */$cronhr * * ? * systemctl restart realm" >>/etc/crontab
+      echo -e "定时重启设置成功！"
+    elif [ "$numcrontype" == "2" ]; then
+      echo -e "-----------------------------------"
+      read -p "每日？点重启: " cronhr
+      echo "0 0 $cronhr * * ? systemctl restart realm" >>/etc/crontab
+      echo -e "定时重启设置成功！"
+    else
+      echo "type error, please try again"
+      exit
+    fi
+  elif [ "$numcron" == "2" ]; then
+    sed -i "/gost/d" /etc/crontab
+    echo -e "定时重启任务删除完成！"
+  else
+    echo "type error, please try again"
+    exit
+  fi
 }
 
 # 主循环
