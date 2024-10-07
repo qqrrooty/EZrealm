@@ -32,6 +32,7 @@ show_menu() {
     echo "5. 停止服务"
     echo "6. 一键卸载"
     echo "7. 定时任务"
+    echo "8. 退出脚本"
     echo "================="
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
@@ -205,7 +206,7 @@ while true; do
     choice=$(echo $choice | tr -d '[:space:]')
 
     # 检查输入是否为数字，并在有效范围内
-    if ! [[ "$choice" =~ ^[1-7]$ ]]; then
+    if ! [[ "$choice" =~ ^[1-8]$ ]]; then
         echo "无效选项: $choice"
         continue
     fi
@@ -232,6 +233,13 @@ while true; do
         7)
             cron_restart
             ;;  # 处理第7个选项
+        8)
+            echo "退出脚本。"  # 显示退出消息
+            exit 0            # 退出脚本
+            ;;
+        *)
+            echo "无效选项: $choice"
+            ;;
     esac
     read -p "按任意键继续..." key
 done
