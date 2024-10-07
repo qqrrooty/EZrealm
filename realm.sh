@@ -140,18 +140,21 @@ delete_forward() {
 
     # 确定删除范围，从备注行（可能存在）开始，到下一个 [[endpoints]] 或文件末尾
     local start_line=$((line_number-1)) # 从备注行开始
-    local end_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '\$1 > start {print \$1; exit}')
+    local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | awk -F: -v start=$start_line '\$1 > start {print \$1; exit}')
     
-    if [ -z "$end_line" ]; then
+    if [ -z "$next_endpoints_line" ]; then
         # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
         end_line=$(wc -l < /root/realm/config.toml)
     else
         # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
-        end_line=$((end_line - 1))
+        end_line=$((next_endpoints_line - 1))
     fi
 
     # 使用 sed 删除指定行范围的内容
     sed -i "${start_line},${end_line}d" /root/realm/config.toml
+
+    # 检查并删除可能多余的空行
+    sed -i '/^\s*$/d' /root/realm/config.toml
 
     echo "转发规则及其备注已删除。"
 }
