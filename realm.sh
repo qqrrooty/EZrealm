@@ -24,9 +24,10 @@ check_realm_service_status() {
 show_menu() {
     clear
     echo "欢迎使用realm一键转发脚本"
+    echo "realm版本v2.6.2"
     echo "修改by：Azimi"
     echo "================="
-    echo "1. 部署realm环境"
+    echo "1. 安装realm"
     echo "————————————"
     echo "2. 添加realm转发"
     echo "3. 查看realm转发"
@@ -35,9 +36,9 @@ show_menu() {
     echo "5. 启动realm服务"
     echo "6. 停止realm服务"
     echo "————————————"
-    echo "7. 一键卸载realm"
+    echo "7. 卸载realm"
     echo "————————————"
-    echo "8. 定时重启任务"
+    echo "8. realm定时重启任务"
     echo "————————————"
     echo "9. 退出脚本"
     echo "================="
