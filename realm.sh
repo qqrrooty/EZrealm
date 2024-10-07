@@ -106,9 +106,16 @@ delete_forward() {
         local line_number=$(echo $line | cut -d ':' -f 1)  # 获取 listen 行的行号
         local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 listen 信息
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
+        
+        # 获取备注信息，确保格式为 "# 备注: "
+        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)
+        
+        # 如果获取不到备注，显示"无备注"
+        if [ -z "$remark" ]; then
+            remark="无备注"
+        fi
 
-        # 在一行中显示备注、监听端口和远程地址信息
+        # 显示备注、监听端口和远程地址信息
         echo "${index}. 备注: ${remark}, listen: ${listen_info}, remote: ${remote_info}"
         let index+=1
     done
@@ -175,12 +182,21 @@ show_all_conf() {
         local line_number=$(echo $line | cut -d ':' -f 1)  # 获取 listen 行的行号
         local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 listen 信息
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)  # 获取 remote 信息
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)  # 获取备注
+        
+        # 获取备注信息，确保格式为 "# 备注: "
+        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2-)
+        
+        # 如果获取不到备注，显示"无备注"
+        if [ -z "$remark" ]; then
+            remark="无备注"
+        fi
 
-        echo "${index}. 备注: ${remark}, listen端口: ${listen_info}, remote: ${remote_info}"
+        # 显示备注、监听端口和远程地址信息
+        echo "${index}. 备注: ${remark}, listen: ${listen_info}, remote: ${remote_info}"
         let index+=1
     done
 }
+
 
 
 
