@@ -43,7 +43,7 @@ show_menu() {
 deploy_realm() {
     mkdir -p /root/realm
     cd /root/realm
-    wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.6.2/realm-x86_64-unknown-linux-gnu.tar.gz
+    wget -O realm.tar.gz https://ghp.ci/https://github.com/zhboner/realm/releases/download/v2.6.2/realm-x86_64-unknown-linux-gnu.tar.gz
     tar -xvf realm.tar.gz
     chmod +x realm
     # 创建服务文件
@@ -163,15 +163,15 @@ stop_service() {
 # 定时任务
 cron_restart() {
   echo -e "------------------------------------------------------------------"
-  echo -e "realm定时重启任务: "
+  echo -e "gost定时重启任务: "
   echo -e "-----------------------------------"
-  echo -e "[1] 配置realm定时重启任务"
-  echo -e "[2] 删除realm定时重启任务"
+  echo -e "[1] 配置gost定时重启任务"
+  echo -e "[2] 删除gost定时重启任务"
   echo -e "-----------------------------------"
   read -p "请选择: " numcron
   if [ "$numcron" == "1" ]; then
     echo -e "------------------------------------------------------------------"
-    echo -e "realm定时重启任务类型: "
+    echo -e "gost定时重启任务类型: "
     echo -e "-----------------------------------"
     echo -e "[1] 每？小时重启"
     echo -e "[2] 每日？点重启"
@@ -180,21 +180,23 @@ cron_restart() {
     if [ "$numcrontype" == "1" ]; then
       echo -e "-----------------------------------"
       read -p "每？小时重启: " cronhr
-      echo "0 */$cronhr * * * /bin/systemctl restart realm" >> /etc/crontab
+      echo "0 0 */$cronhr * * ? * systemctl restart realm" >>/etc/crontab
       echo -e "定时重启设置成功！"
     elif [ "$numcrontype" == "2" ]; then
       echo -e "-----------------------------------"
       read -p "每日？点重启: " cronhr
-      echo "0 $cronhr * * * /bin/systemctl restart realm" >> /etc/crontab
+      echo "0 0 $cronhr * * ? systemctl restart realm" >>/etc/crontab
       echo -e "定时重启设置成功！"
     else
       echo "输入错误，请重试"
+      exit
     fi
   elif [ "$numcron" == "2" ]; then
-    sed -i '/systemctl restart realm/d' /etc/crontab
+    sed -i "/realm/d" /etc/crontab
     echo -e "定时重启任务删除完成！"
   else
     echo "输入错误，请重试"
+    exit
   fi
 }
 
