@@ -96,8 +96,8 @@ uninstall_realm() {
 delete_forward() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 listen 的行，表示转发规则的起始行
-    local lines=($(grep -n 'listen =' /root/realm/config.toml))
+    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
+    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
     
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
@@ -107,9 +107,14 @@ delete_forward() {
     local index=1
     for line in "${lines[@]}"; do
         local line_number=$(echo $line | cut -d ':' -f 1)
-        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
+        local remark_line=$((line_number + 1))
+        local listen_line=$((line_number + 2))
+        local remote_line=$((line_number + 3))
+
+        local remark=$(sed -n "${remark_line}p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
+        local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+
         local listen_port=$(echo $listen_info | cut -d ':' -f 2)
         local remote_ip_port=$remote_info
 
@@ -136,10 +141,9 @@ delete_forward() {
     fi
 
     local chosen_line=${lines[$((choice-1))]}
-    local line_number=$(echo $chosen_line | cut -d ':' -f 1)
+    local start_line=$(echo $chosen_line | cut -d ':' -f 1)
 
-    # 确定删除范围，从 [[endpoints]] 行开始，到下一个 [[endpoints]] 或文件末尾
-    local start_line=$line_number
+    # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
     local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
     
     if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
@@ -153,16 +157,11 @@ delete_forward() {
     # 使用 sed 删除指定行范围的内容
     sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
-    # 检查并删除可能多余的 [[endpoints]] 块
-    sed -i '/^\[\[endpoints\]\]$/d' /root/realm/config.toml
-
     # 检查并删除可能多余的空行
     sed -i '/^\s*$/d' /root/realm/config.toml
 
     echo "转发规则及其备注已删除。"
 }
-
-
 
 # 查看转发规则
 show_all_conf() {
