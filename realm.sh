@@ -131,6 +131,7 @@ delete_forward() {
 }
 
 #查看转发规则
+show_all_conf() {
     echo "当前转发规则："
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     local lines=($(grep -n 'remote =' /root/realm/config.toml)) # 搜索所有包含转发规则的行
