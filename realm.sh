@@ -220,6 +220,9 @@ while true; do
         6)
             uninstall_realm
             ;;
+        7)
+            cron_restart
+            ;;
         *)
             echo "无效选项: $choice"
             ;;
