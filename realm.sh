@@ -222,7 +222,7 @@ while true; do
             ;;
         7)
             cron_restart
-            ;;
+            ;;  # 这里加入第七个选项的处理
         *)
             echo "无效选项: $choice"
             ;;
