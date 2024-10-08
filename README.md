@@ -8,6 +8,8 @@
 
 4.新增了转发备注(非中文)
 
+5.开启了UDP转发
+
 国外机器
 
 wget https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh && chmod +x realm.sh && ./realm.sh
