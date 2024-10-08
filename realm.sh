@@ -104,6 +104,7 @@ uninstall_realm() {
     systemctl daemon-reload
     rm -rf /root/realm
     rm -rf "$(pwd)"/realm.sh
+    sed -i '/realm/d' /etc/crontab
     echo "realm已被卸载。"
     # 更新realm状态变量
     realm_status="未安装"
