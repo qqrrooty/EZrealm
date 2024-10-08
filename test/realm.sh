@@ -73,16 +73,23 @@ ExecStart=/root/realm/realm -c /root/realm/config.toml
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/realm.service
     systemctl daemon-reload
-    
+
+    # 服务启动后，检查config.toml是否存在，如果不存在则创建
     if [ ! -f /root/realm/config.toml ]; then
         touch /root/realm/config.toml
     fi
 
-    # 在config.toml最顶部添加网络配置
-    echo "[network]
+    # 检查config.toml中是否已经包含[network]配置
+    if ! grep -q "\[network\]" /root/realm/config.toml; then
+        # 如果没有找到[network]，将其添加到文件顶部
+        echo "[network]
 no_tcp = false
 use_udp = true
 " | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
+        echo "[network] 配置已添加到 config.toml 文件。"
+    else
+        echo "[network] 配置已存在，跳过添加。"
+    fi
 
     # 更新realm状态变量
     realm_status="已安装"
