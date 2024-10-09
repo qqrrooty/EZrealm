@@ -10,6 +10,8 @@
 
 5.开启了UDP转发
 
+更新请运行删除脚本代码 rm realm.sh 后再次运行以下代码
+
 国外机器
 
 wget https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh && chmod +x realm.sh && ./realm.sh
