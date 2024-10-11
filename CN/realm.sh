@@ -78,16 +78,27 @@ WantedBy=multi-user.target" > /etc/systemd/system/realm.service
         touch /root/realm/config.toml
     fi
 
-    # 检查config.toml中是否已经包含[network]配置
-    if ! grep -q "\[network\]" /root/realm/config.toml; then
-        # 如果没有找到[network]，将其添加到文件顶部
-        echo "[network]
+# 检查 config.toml 中是否已经包含 [network] 配置块
+    network_count=$(grep -c '^\[network\]' /root/realm/config.toml)
+
+    if [ "$network_count" -eq 0 ]; then
+    # 如果没有找到 [network]，将其添加到文件顶部
+    echo "[network]
 no_tcp = false
 use_udp = true
 " | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
-        echo "[network] 配置已添加到 config.toml 文件。"
+    echo "[network] 配置已添加到 config.toml 文件。"
+    
+    elif [ "$network_count" -gt 1 ]; then
+    # 如果找到多个 [network]，删除多余的配置块，只保留第一个
+    sed -i '0,/^\[\[endpoints\]\]/{//!d}' /root/realm/config.toml
+    echo "[network]
+no_tcp = false
+use_udp = true
+" | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
+    echo "多余的 [network] 配置已删除。"
     else
-        echo "[network] 配置已存在，跳过添加。"
+    echo "[network] 配置已存在，跳过添加。"
     fi
 
     # 更新realm状态变量
