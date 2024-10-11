@@ -88,14 +88,14 @@ no_tcp = false
 use_udp = true
 " | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
     echo "[network] 配置已添加到 config.toml 文件。"
+    
     elif [ "$network_count" -gt 1 ]; then
     # 如果找到多个 [network]，删除多余的配置块，只保留第一个
-    sed -i '1,/^\[network\]$/!{/^\[network\]$/d}' /root/realm/config.toml
+    sed -i '1,/^\[network\]/!b; /^\[network\]/d; /\[network\]/{h;d;}; x; /^\[network\]$/!{x;d;}; x;' /root/realm/config.toml
     echo "多余的 [network] 配置已删除。"
     else
     echo "[network] 配置已存在，跳过添加。"
     fi
-
 
     # 更新realm状态变量
     realm_status="已安装"
