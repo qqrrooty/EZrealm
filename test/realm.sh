@@ -54,8 +54,7 @@ deploy_realm() {
     wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.6.2/realm-x86_64-unknown-linux-gnu.tar.gz
     tar -xvf realm.tar.gz
     chmod +x realm
-
-# 创建服务文件
+    # 创建服务文件
     echo "[Unit]
 Description=realm
 After=network-online.target
@@ -79,16 +78,27 @@ WantedBy=multi-user.target" > /etc/systemd/system/realm.service
         touch /root/realm/config.toml
     fi
 
-    # 检查config.toml中是否已经包含[network]配置
-    if ! grep -q "\[network\]" /root/realm/config.toml; then
-        # 如果没有找到[network]，将其添加到文件顶部
-        echo "[network]
+# 检查 config.toml 中是否已经包含 [network] 配置块
+    network_count=$(grep -c '^\[network\]' /root/realm/config.toml)
+
+    if [ "$network_count" -eq 0 ]; then
+    # 如果没有找到 [network]，将其添加到文件顶部
+    echo "[network]
 no_tcp = false
 use_udp = true
 " | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
-        echo "[network] 配置已添加到 config.toml 文件。"
+    echo "[network] 配置已添加到 config.toml 文件。"
+    
+    elif [ "$network_count" -gt 1 ]; then
+    # 如果找到多个 [network]，删除多余的配置块，只保留第一个
+    sed -i '0,/^\[\[endpoints\]\]/{//!d}' /root/realm/config.toml
+    echo "[network]
+no_tcp = false
+use_udp = true
+" | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
+    echo "多余的 [network] 配置已删除。"
     else
-        echo "[network] 配置已存在，跳过添加。"
+    echo "[network] 配置已存在，跳过添加。"
     fi
 
     # 更新realm状态变量
@@ -105,6 +115,7 @@ uninstall_realm() {
     systemctl daemon-reload
     rm -rf /root/realm
     rm -rf "$(pwd)"/realm.sh
+    sed -i '/realm/d' /etc/crontab
     echo "realm已被卸载。"
     # 更新realm状态变量
     realm_status="未安装"
@@ -264,12 +275,12 @@ cron_restart() {
     if [ "$numcrontype" == "1" ]; then
       echo -e "-----------------------------------"
       read -p "每？小时重启: " cronhr
-      echo "0 0 */$cronhr * * ? * systemctl restart realm" >>/etc/crontab
+      echo "0 */$cronhr * * * systemctl restart realm" >>/etc/crontab
       echo -e "定时重启设置成功！"
     elif [ "$numcrontype" == "2" ]; then
       echo -e "-----------------------------------"
       read -p "每日？点重启: " cronhr
-      echo "0 0 $cronhr * * ? systemctl restart realm" >>/etc/crontab
+      echo "0 $cronhr * * * systemctl restart realm" >>/etc/crontab
       echo -e "定时重启设置成功！"
     else
       echo "输入错误，请重试"
