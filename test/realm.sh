@@ -26,6 +26,8 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "realm版本v2.6.2"
     echo "修改by：Azimi"
+    echo "修改日期：2024/10/22"
+    echo "修改内容：监听地址仅ipv4修改成所有ipv4和ipv6"
     echo "========================"
     echo "1. 安装realm"
     echo "——————————————————"
@@ -226,7 +228,7 @@ add_forward() {
     while true; do
         read -p "请输入本地监听端口: " local_port
         read -p "请输入需要转发的IP: " ip
-        read -p "请输入需要转发端口(ipv6请带[]): " port
+        read -p "请输入需要转发端口: " port
         read -p "请输入备注(非中文): " remark
         # 追加到config.toml文件
         echo "[[endpoints]]
@@ -276,12 +278,12 @@ cron_restart() {
     if [ "$numcrontype" == "1" ]; then
       echo -e "-----------------------------------"
       read -p "每？小时重启: " cronhr
-      echo "0 */$cronhr * * * systemctl restart realm" >>/etc/crontab
+      echo "0 */$cronhr * * * root /usr/bin/systemctl restart realm" >>/etc/crontab
       echo -e "定时重启设置成功！"
     elif [ "$numcrontype" == "2" ]; then
       echo -e "-----------------------------------"
       read -p "每日？点重启: " cronhr
-      echo "0 $cronhr * * * systemctl restart realm" >>/etc/crontab
+      echo "0 $cronhr * * * root /usr/bin/systemctl restart realm" >>/etc/crontab
       echo -e "定时重启设置成功！"
     else
       echo "输入错误，请重试"
