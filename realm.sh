@@ -26,6 +26,8 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "realm版本v2.6.2"
     echo "修改by：Azimi"
+    echo "修改日期：2024/10/22"
+    echo "修改内容：监听地址仅ipv4修改成所有ipv4和ipv6"
     echo "========================"
     echo "1. 安装realm"
     echo "——————————————————"
@@ -145,11 +147,11 @@ delete_forward() {
         local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
         local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
 
-        local listen_port=$(echo $listen_info | cut -d ':' -f 2)
+        local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
         echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_port}, remote: ${remote_ip_port}"
+        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
         let index+=1
     done
 
@@ -211,11 +213,12 @@ show_all_conf() {
         local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
         local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        local listen_port=$(echo $listen_info | cut -d ':' -f 2)
+        
+        local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
         echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_port}, remote: ${remote_ip_port}"
+        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
         let index+=1
     done
 }
@@ -230,7 +233,7 @@ add_forward() {
         # 追加到config.toml文件
         echo "[[endpoints]]
 # 备注: $remark
-listen = \"0.0.0.0:$local_port\"
+listen = \"[::]:$local_port\"
 remote = \"$ip:$port\"" >> /root/realm/config.toml
         
         read -p "是否继续添加(Y/N)? " answer
