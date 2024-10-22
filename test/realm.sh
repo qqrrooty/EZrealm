@@ -226,12 +226,12 @@ add_forward() {
     while true; do
         read -p "请输入本地监听端口: " local_port
         read -p "请输入需要转发的IP: " ip
-        read -p "请输入需要转发端口: " port
+        read -p "请输入需要转发端口(ipv6请带[]): " port
         read -p "请输入备注(非中文): " remark
         # 追加到config.toml文件
         echo "[[endpoints]]
 # 备注: $remark
-listen = \"0.0.0.0:$local_port\"
+listen = \"[::]:$local_port\"
 remote = \"$ip:$port\"" >> /root/realm/config.toml
         
         read -p "是否继续添加(Y/N)? " answer
