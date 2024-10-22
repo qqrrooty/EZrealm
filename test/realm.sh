@@ -145,11 +145,11 @@ delete_forward() {
         local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
         local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
 
-        local listen_port=$(echo $listen_info | cut -d ':' -f 2)
+        local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
         echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_port}, remote: ${remote_ip_port}"
+        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
         let index+=1
     done
 
@@ -211,11 +211,12 @@ show_all_conf() {
         local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
         local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
         local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        local listen_port=$(echo $listen_info | cut -d ':' -f 2)
+        
+        local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
         echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_port}, remote: ${remote_ip_port}"
+        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
         let index+=1
     done
 }
