@@ -24,10 +24,10 @@ check_realm_service_status() {
 show_menu() {
     clear
     echo "欢迎使用realm一键转发脚本"
-    echo "realm版本v2.6.2"
+    echo "realm版本v2.6.3"
     echo "修改by：Azimi"
-    echo "修改日期：2024/10/22"
-    echo "修改内容：监听地址仅ipv4修改成所有ipv4和ipv6"
+    echo "修改日期：2024/11/11"
+    echo "修改内容：更新realm版本至最新v2.6.3"
     echo "========================"
     echo "1. 安装realm"
     echo "——————————————————"
@@ -53,7 +53,7 @@ show_menu() {
 deploy_realm() {
     mkdir -p /root/realm
     cd /root/realm
-    wget -O realm.tar.gz https://ghp.ci/https://github.com/zhboner/realm/releases/download/v2.6.2/realm-x86_64-unknown-linux-gnu.tar.gz
+    wget -O realm.tar.gz https://ghp.ci/https://github.com/zhboner/realm/releases/download/v2.6.3/realm-x86_64-unknown-linux-gnu.tar.gz
     tar -xvf realm.tar.gz
     chmod +x realm
     # 创建服务文件
