@@ -223,7 +223,7 @@ show_all_conf() {
     if [ -z "$remark" ]; then
       remark="无备注"
     fi
-    printf "%-5s| %-15s| %-25s| %-10s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-5s| %-15s| %-25s| %-10s\n" "$index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
     done
