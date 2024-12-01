@@ -223,7 +223,7 @@ printf "%-5s| %-15s| %-25s| %-30s\n" "序号" "本地地址:本地端口 " "目�
     if [ -z "$remark" ]; then
       remark="无备注"
     fi
-  printf "%-5s| %-15s| %-25s| %-20s\n" "$index" "$listen_info" "$remote_info" "$remark"
+  printf "%-3s| %-17s| %-23s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
     done
