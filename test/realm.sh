@@ -26,23 +26,24 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "realm版本v2.6.3"
     echo "修改by：Azimi"
-    echo "修改日期：2024/12/1 13.14"
-    echo "修改内容：更新realm版本至最新v2.6.3"
+    echo "修改日期：2024/12/1"
+    echo "修改内容：修改查看转发规则内容更加清晰"
     echo "========================"
-    echo "1. 安装realm"
+    echo " 1. 安装 realm"
     echo "——————————————————"
-    echo "2. 添加realm转发"
-    echo "3. 查看realm转发"
-    echo "4. 删除realm转发"
+    echo " 2. 添加 realm转发"
+    echo " 3. 查看 realm转发"
+    echo " 4. 删除 realm转发"
     echo "——————————————————"
-    echo "5. 启动realm服务"
-    echo "6. 停止realm服务"
+    echo " 5. 启动 realm服务"
+    echo " 6. 停止 realm服务"
+    echo " 7. 重启 realm服务"
     echo "——————————————————"
-    echo "7. 卸载realm"
+    echo " 8. 卸载 realm"
     echo "——————————————————"
-    echo "8. 定时重启任务"
+    echo " 9. 定时重启任务"
     echo "——————————————————"
-    echo "9. 退出脚本"
+    echo " 0. 退出脚本"
     echo "========================"
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
@@ -126,34 +127,37 @@ uninstall_realm() {
 
 # 删除转发规则的函数
 delete_forward() {
-    echo "当前转发规则："
+  echo -e "                      Realm 配置                        "
+  echo -e "--------------------------------------------------------"
+printf "%-5s| %-15s| %-25s| %-30s\n" "序号" "本地地址:本地端口 " "目的地地址:目的地端口 " "备注"
+  echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
-    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
+    # 搜索所有包含 listen 的行，表示转发规则的起始行
+    local lines=($(grep -n 'listen =' /root/realm/config.toml))
     
     if [ ${#lines[@]} -eq 0 ]; then
-        echo "没有发现任何转发规则。"
+  echo -e "没有发现任何转发规则。"
         return
     fi
 
     local index=1
     for line in "${lines[@]}"; do
         local line_number=$(echo $line | cut -d ':' -f 1)
-        local remark_line=$((line_number + 1))
-        local listen_line=$((line_number + 2))
-        local remote_line=$((line_number + 3))
-
-        local remark=$(sed -n "${remark_line}p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
-
+        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
+        
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
-
-        echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
+        
+    if [ -z "$remark" ]; then
+      remark="无备注"
+    fi
+  printf "%-4s| %-12s| %-25s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    echo -e "--------------------------------------------------------"
         let index+=1
     done
+}
 
     echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
     read -p "选择: " choice
@@ -223,7 +227,7 @@ printf "%-5s| %-15s| %-25s| %-30s\n" "序号" "本地地址:本地端口 " "目�
     if [ -z "$remark" ]; then
       remark="无备注"
     fi
-  printf "%-3s| %-17s| %-23s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+  printf "%-4s| %-12s| %-25s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
     done
@@ -262,6 +266,16 @@ start_service() {
 stop_service() {
     systemctl stop realm
     echo "realm服务已停止。"
+}
+
+# 重启服务
+restart_service() {
+    sudo systemctl stop realm
+    sudo systemctl unmask realm.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart realm.service
+    sudo systemctl enable realm.service
+    echo "realm服务已重启。"
 }
 
 # 定时任务
@@ -337,12 +351,15 @@ while true; do
             stop_service
             ;;
         7)
-            uninstall_realm
+            restart_service
             ;;
         8)
+            uninstall_realm
+            ;;
+        9)
             cron_restart
             ;;  
-        9)
+        0)
             echo "退出脚本。"  # 显示退出消息
             exit 0            # 退出脚本
             ;;
