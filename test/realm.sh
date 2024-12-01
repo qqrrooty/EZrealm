@@ -325,7 +325,7 @@ while true; do
     choice=$(echo $choice | tr -d '[:space:]')
 
     # 检查输入是否为数字，并在有效范围内
-    if ! [[ "$choice" =~ ^[1-9]$ ]]; then
+    if ! [[ "$choice" =~ ^[0-9]$ ]]; then
         echo "无效选项: $choice"
         continue
     fi
