@@ -24,10 +24,10 @@ check_realm_service_status() {
 show_menu() {
     clear
     echo "欢迎使用realm一键转发脚本"
-    echo "realm版本v2.6.2"
+    echo "realm版本v2.6.3"
     echo "修改by：Azimi"
-    echo "修改日期：2024/10/22"
-    echo "修改内容：监听地址仅ipv4修改成所有ipv4和ipv6"
+    echo "修改日期：2024/11/11"
+    echo "修改内容：更新realm版本至最新v2.6.3"
     echo "========================"
     echo "1. 安装realm"
     echo "——————————————————"
@@ -53,7 +53,7 @@ show_menu() {
 deploy_realm() {
     mkdir -p /root/realm
     cd /root/realm
-    wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.6.2/realm-x86_64-unknown-linux-gnu.tar.gz
+    wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.6.3/realm-x86_64-unknown-linux-gnu.tar.gz
     tar -xvf realm.tar.gz
     chmod +x realm
     # 创建服务文件
@@ -197,13 +197,16 @@ delete_forward() {
 
 # 查看转发规则
 show_all_conf() {
-    echo "当前转发规则："
+  echo -e "                      Realm 配置                        "
+  echo -e "--------------------------------------------------------"
+  echo -e "序号|    本地地址:本地端口    |    目的地地址:目的地端口    |    备注"
+  echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
     
     if [ ${#lines[@]} -eq 0 ]; then
-        echo "没有发现任何转发规则。"
+  echo -e "没有发现任何转发规则。"
         return
     fi
 
@@ -216,9 +219,12 @@ show_all_conf() {
         
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
-
-        echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
+        
+    if [ -z "$remark" ]; then
+      remark="无备注"
+    fi
+    echo -e " ${index} |    ${listen_ip_port}    |    ${remote_ip_port}    |    备注: ${remark}"
+    echo -e "--------------------------------------------------------"
         let index+=1
     done
 }
