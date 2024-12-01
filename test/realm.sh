@@ -23,11 +23,11 @@ check_realm_service_status() {
 # 显示菜单的函数
 show_menu() {
     clear
-    echo "欢迎使用realm一键转发脚本"
-    echo "realm版本v2.6.3"
-    echo "修改by：Azimi"
-    echo "修改日期：2024/12/1"
-    echo "修改内容：修改查看转发规则内容更加清晰"
+    echo "            欢迎使用realm一键转发脚本"
+    echo "—————— 修改by：Azimi    realm版本v2.6.3 ——————"
+    echo "       修改日期：2024/12/1"
+    echo "       修改内容：修改查看转发规则内容更加清晰"
+    echo " "
     echo "========================"
     echo " 1. 安装 realm"
     echo "——————————————————"
@@ -45,6 +45,7 @@ show_menu() {
     echo "——————————————————"
     echo " 0. 退出脚本"
     echo "========================"
+    echo " "
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
     check_realm_service_status
