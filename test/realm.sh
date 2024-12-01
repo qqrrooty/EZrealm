@@ -24,11 +24,12 @@ check_realm_service_status() {
 show_menu() {
     clear
     echo "            欢迎使用realm一键转发脚本"
-    echo "—————— 修改by：Azimi    realm版本v2.6.3 ——————"
-    echo "       修改日期：2024/12/1"
+    echo " ———————————— realm版本v2.6.3 ————————————"
+    echo "       修改by：Azimi    修改日期：2024/12/1"
     echo "       修改内容：修改查看转发规则内容更加清晰"
+    echo "     仓库：https://github.com/qqrrooty/EZrealm"
     echo " "
-    echo "========================"
+    echo "——————————————————"
     echo " 1. 安装 realm"
     echo "——————————————————"
     echo " 2. 添加 realm 转发规则"
@@ -44,7 +45,7 @@ show_menu() {
     echo " 9. 定时重启任务"
     echo "——————————————————"
     echo " 0. 退出脚本"
-    echo "========================"
+    echo "——————————————————"
     echo " "
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
@@ -321,7 +322,7 @@ cron_restart() {
 # 主循环
 while true; do
     show_menu
-    read -p "请选择一个选项: " choice
+    read -p "请选择一个选项[0-9]: " choice
     # 去掉输入中的空格
     choice=$(echo $choice | tr -d '[:space:]')
 
