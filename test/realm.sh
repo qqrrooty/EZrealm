@@ -26,7 +26,7 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "realm版本v2.6.3"
     echo "修改by：Azimi"
-    echo "修改日期：2024/12/1 12.38"
+    echo "修改日期：2024/12/1 12.42"
     echo "修改内容：更新realm版本至最新v2.6.3"
     echo "========================"
     echo "1. 安装realm"
@@ -199,7 +199,7 @@ delete_forward() {
 show_all_conf() {
   echo -e "                      Realm 配置                        "
   echo -e "--------------------------------------------------------"
-  printf "%-5s| %-20s| %-25s| %-10s\n" "序号" "本地地址:本地端口" "目的地地址:目的地端口" "备注"
+  printf "%-5s| %-20s| %-25s| %-15s\n" "序号" "本地地址:本地端口" "目的地地址:目的地端口" "备注"
   echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
@@ -223,7 +223,7 @@ show_all_conf() {
     if [ -z "$remark" ]; then
       remark="无备注"
     fi
-    printf "%-5s| %-20s| %-25s| %-10s\n" "$index" "$listen_info" "$remote_info" "$remark"
+    printf "%-5s| %-20s| %-25s| %-15s\n" "$index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
     done
