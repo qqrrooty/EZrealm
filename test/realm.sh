@@ -155,9 +155,6 @@ delete_forward() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
         
-    if [ -z "$remark" ]; then
-      remark="无备注"
-    fi
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
@@ -230,9 +227,6 @@ show_all_conf() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
         
-    if [ -z "$remark" ]; then
-      remark="无备注"
-    fi
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
