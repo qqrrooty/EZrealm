@@ -199,7 +199,7 @@ delete_forward() {
 show_all_conf() {
   echo -e "                      Realm 配置                        "
   echo -e "--------------------------------------------------------"
-  printf "%-5s| %-25s| %-25s| %-20s\n" "序号" "本地地址:本地端口" "目的地地址:目的地端口" "备注"
+printf "%-3s| %-15s| %-25s| %-30s\n" "序号" "本地地址:本地端口" "目的地地址:目的地端口" "备注"
   echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
@@ -223,7 +223,7 @@ show_all_conf() {
     if [ -z "$remark" ]; then
       remark="无备注"
     fi
-  printf "%-5s| %-25s| %-25s| %-20s\n" "$index" "$listen_info" "$remote_info" "$remark"
+  printf "%-3s| %-15s| %-25s| %-20s\n" "$index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
     done
