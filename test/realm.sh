@@ -26,7 +26,8 @@ show_menu() {
     echo "            欢迎使用realm一键转发脚本"
     echo " ———————————— realm版本v2.6.3 ————————————"
     echo "     修改by：Azimi    修改日期：2024/12/1"
-    echo "     修改内容：修改查看转发规则内容更加清晰"
+    echo "     修改内容：1.修改查看转发规则内容更加清晰"
+    echo "               2.添加/删除规则后自动重启服务"
     echo "     更新脚本请先删除脚本 rm realm.sh"
     echo "     如果启动失败请检查 /root/realm/config.toml下有无多余配置或者卸载后重新配置"
     echo "     仓库：https://github.com/qqrrooty/EZrealm"
@@ -200,6 +201,8 @@ delete_forward() {
     sed -i '/^\s*$/d' /root/realm/config.toml
 
     echo "转发规则及其备注已删除。"
+    
+    sudo systemctl restart realm.service
 }
 
 # 查看转发规则
@@ -254,6 +257,8 @@ remote = \"$ip:$port\"" >> /root/realm/config.toml
             break
         fi
     done
+    
+    sudo systemctl restart realm.service
 }
 
 # 启动服务
