@@ -24,7 +24,7 @@ check_realm_service_status() {
 show_menu() {
     clear
     echo "            欢迎使用realm一键转发脚本"
-    echo " ———————————— realm版本v2.6.3 ————————————"
+    echo " ———————————— realm版本v2.7.0 ————————————"
     echo "     修改by：Azimi    修改日期：2024/12/1"
     echo "     修改内容：1.修改查看转发规则内容更加清晰"
     echo "               2.添加/删除规则后自动重启服务"
@@ -59,7 +59,7 @@ show_menu() {
 deploy_realm() {
     mkdir -p /root/realm
     cd /root/realm
-    wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.6.3/realm-x86_64-unknown-linux-gnu.tar.gz
+    wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.7.0/realm-x86_64-unknown-linux-gnu.tar.gz
     tar -xvf realm.tar.gz
     chmod +x realm
     # 创建服务文件
@@ -132,33 +132,38 @@ uninstall_realm() {
 
 # 删除转发规则的函数
 delete_forward() {
-  echo -e "                      Realm 配置                        "
+  echo -e "                   当前 Realm 转发规则                   "
   echo -e "--------------------------------------------------------"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
   echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 listen 的行，表示转发规则的起始行
-    local lines=($(grep -n 'listen =' /root/realm/config.toml))
+    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
+    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
     
     if [ ${#lines[@]} -eq 0 ]; then
-  echo -e "没有发现任何转发规则。"
+        echo "没有发现任何转发规则。"
         return
     fi
 
     local index=1
     for line in "${lines[@]}"; do
         local line_number=$(echo $line | cut -d ':' -f 1)
-        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        
+        local remark_line=$((line_number + 1))
+        local listen_line=$((line_number + 2))
+        local remote_line=$((line_number + 3))
+
+        local remark=$(sed -n "${remark_line}p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
+        local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
-        
+
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "--------------------------------------------------------"
         let index+=1
     done
+
 
     echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
     read -p "选择: " choice
@@ -175,36 +180,37 @@ delete_forward() {
     if [ $choice -lt 1 ] || [ $choice -gt ${#lines[@]} ]; then
         echo "选择超出范围，请输入有效序号。"
         return
-    fi
+  fi
 
-    local chosen_line=${lines[$((choice-1))]}
-    local start_line=$(echo $chosen_line | cut -d ':' -f 1)
+  local chosen_line=${lines[$((choice-1))]}
+  local start_line=$(echo $chosen_line | cut -d ':' -f 1)
 
-    # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
-    local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
-    
-    if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
-        # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
-        end_line=$(wc -l < /root/realm/config.toml)
-    else
-        # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
-        end_line=$((next_endpoints_line - 1))
-    fi
+  # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
+  local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
 
-    # 使用 sed 删除指定行范围的内容
-    sed -i "${start_line},${end_line}d" /root/realm/config.toml
+  if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
+    # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
+    end_line=$(wc -l < /root/realm/config.toml)
+  else
+    # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
+    end_line=$((next_endpoints_line - 1))
+  fi
 
-    # 检查并删除可能多余的空行
-    sed -i '/^\s*$/d' /root/realm/config.toml
+  # 使用 sed 删除指定行范围的内容
+  sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
-    echo "转发规则及其备注已删除。"
-    
-    sudo systemctl restart realm.service
+  # 检查并删除可能多余的空行
+  sed -i '/^\s*$/d' /root/realm/config.toml
+
+  echo "转发规则及其备注已删除。"
+
+  # 重启服务
+  sudo systemctl restart realm.service
 }
 
 # 查看转发规则
 show_all_conf() {
-  echo -e "                      Realm 配置                        "
+  echo -e "                   当前 Realm 转发规则                   "
   echo -e "--------------------------------------------------------"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
   echo -e "--------------------------------------------------------"
