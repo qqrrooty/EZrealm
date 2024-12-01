@@ -26,7 +26,7 @@ show_menu() {
     echo "欢迎使用realm一键转发脚本"
     echo "realm版本v2.6.3"
     echo "修改by：Azimi"
-    echo "修改日期：2024/12/1 12.48"
+    echo "修改日期：2024/12/1 12.53"
     echo "修改内容：更新realm版本至最新v2.6.3"
     echo "========================"
     echo "1. 安装realm"
