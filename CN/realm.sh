@@ -23,27 +23,34 @@ check_realm_service_status() {
 # 显示菜单的函数
 show_menu() {
     clear
-    echo "欢迎使用realm一键转发脚本"
-    echo "realm版本v2.6.3"
-    echo "修改by：Azimi"
-    echo "修改日期：2024/11/11"
-    echo "修改内容：更新realm版本至最新v2.6.3"
-    echo "========================"
-    echo "1. 安装realm"
+    echo "            欢迎使用realm一键转发脚本"
+    echo " ———————————— realm版本v2.7.0 ————————————"
+    echo "     修改by：Azimi    修改日期：2024/12/1"
+    echo "     修改内容：1.修改查看转发规则内容更加清晰"
+    echo "               2.添加/删除规则后自动重启服务"
+    echo "               3.更新realm版本至2.7.0"
+    echo "     更新脚本请先删除脚本 rm realm.sh"
+    echo "     如果启动失败请检查 /root/realm/config.toml下有无多余配置或者卸载后重新配置"
+    echo "     仓库：https://github.com/qqrrooty/EZrealm"
+    echo " "
     echo "——————————————————"
-    echo "2. 添加realm转发"
-    echo "3. 查看realm转发"
-    echo "4. 删除realm转发"
+    echo " 1. 安装 realm"
     echo "——————————————————"
-    echo "5. 启动realm服务"
-    echo "6. 停止realm服务"
+    echo " 2. 添加 realm 转发规则"
+    echo " 3. 查看 realm 转发规则"
+    echo " 4. 删除 realm 转发规则"
     echo "——————————————————"
-    echo "7. 卸载realm"
+    echo " 5. 启动 realm 服务"
+    echo " 6. 停止 realm 服务"
+    echo " 7. 重启 realm 服务"
     echo "——————————————————"
-    echo "8. 定时重启任务"
+    echo " 8. 卸载 realm"
     echo "——————————————————"
-    echo "9. 退出脚本"
-    echo "========================"
+    echo " 9. 定时重启任务"
+    echo "——————————————————"
+    echo " 0. 退出脚本"
+    echo "——————————————————"
+    echo " "
     echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
     echo -n "realm 转发状态："
     check_realm_service_status
@@ -53,7 +60,7 @@ show_menu() {
 deploy_realm() {
     mkdir -p /root/realm
     cd /root/realm
-    wget -O realm.tar.gz https://ghp.ci/https://github.com/zhboner/realm/releases/download/v2.6.3/realm-x86_64-unknown-linux-gnu.tar.gz
+    wget -O realm.tar.gz https://gh-proxy.com/github.com/zhboner/realm/releases/download/v2.7.0/realm-x86_64-unknown-linux-gnu.tar.gz
     tar -xvf realm.tar.gz
     chmod +x realm
     # 创建服务文件
@@ -126,7 +133,10 @@ uninstall_realm() {
 
 # 删除转发规则的函数
 delete_forward() {
-    echo "当前转发规则："
+  echo -e "                   当前 Realm 转发规则                   "
+  echo -e "--------------------------------------------------------"
+  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
     local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
@@ -150,10 +160,11 @@ delete_forward() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
-        echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
+    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    echo -e "--------------------------------------------------------"
         let index+=1
     done
+
 
     echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
     read -p "选择: " choice
@@ -170,40 +181,46 @@ delete_forward() {
     if [ $choice -lt 1 ] || [ $choice -gt ${#lines[@]} ]; then
         echo "选择超出范围，请输入有效序号。"
         return
-    fi
+  fi
 
-    local chosen_line=${lines[$((choice-1))]}
-    local start_line=$(echo $chosen_line | cut -d ':' -f 1)
+  local chosen_line=${lines[$((choice-1))]}
+  local start_line=$(echo $chosen_line | cut -d ':' -f 1)
 
-    # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
-    local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
-    
-    if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
-        # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
-        end_line=$(wc -l < /root/realm/config.toml)
-    else
-        # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
-        end_line=$((next_endpoints_line - 1))
-    fi
+  # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
+  local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
 
-    # 使用 sed 删除指定行范围的内容
-    sed -i "${start_line},${end_line}d" /root/realm/config.toml
+  if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
+    # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
+    end_line=$(wc -l < /root/realm/config.toml)
+  else
+    # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
+    end_line=$((next_endpoints_line - 1))
+  fi
 
-    # 检查并删除可能多余的空行
-    sed -i '/^\s*$/d' /root/realm/config.toml
+  # 使用 sed 删除指定行范围的内容
+  sed -i "${start_line},${end_line}d" /root/realm/config.toml
 
-    echo "转发规则及其备注已删除。"
+  # 检查并删除可能多余的空行
+  sed -i '/^\s*$/d' /root/realm/config.toml
+
+  echo "转发规则及其备注已删除。"
+
+  # 重启服务
+  sudo systemctl restart realm.service
 }
 
 # 查看转发规则
 show_all_conf() {
-    echo "当前转发规则："
+  echo -e "                   当前 Realm 转发规则                   "
+  echo -e "--------------------------------------------------------"
+  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
     
     if [ ${#lines[@]} -eq 0 ]; then
-        echo "没有发现任何转发规则。"
+  echo -e "没有发现任何转发规则。"
         return
     fi
 
@@ -216,9 +233,9 @@ show_all_conf() {
         
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
-
-        echo "${index}. 备注: ${remark}"
-        echo "   listen: ${listen_ip_port}, remote: ${remote_ip_port}"
+        
+    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    echo -e "--------------------------------------------------------"
         let index+=1
     done
 }
@@ -241,6 +258,8 @@ remote = \"$ip:$port\"" >> /root/realm/config.toml
             break
         fi
     done
+    
+    sudo systemctl restart realm.service
 }
 
 # 启动服务
@@ -256,6 +275,16 @@ start_service() {
 stop_service() {
     systemctl stop realm
     echo "realm服务已停止。"
+}
+
+# 重启服务
+restart_service() {
+    sudo systemctl stop realm
+    sudo systemctl unmask realm.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart realm.service
+    sudo systemctl enable realm.service
+    echo "realm服务已重启。"
 }
 
 # 定时任务
@@ -301,12 +330,12 @@ cron_restart() {
 # 主循环
 while true; do
     show_menu
-    read -p "请选择一个选项: " choice
+    read -p "请选择一个选项[0-9]: " choice
     # 去掉输入中的空格
     choice=$(echo $choice | tr -d '[:space:]')
 
     # 检查输入是否为数字，并在有效范围内
-    if ! [[ "$choice" =~ ^[1-9]$ ]]; then
+    if ! [[ "$choice" =~ ^[0-9]$ ]]; then
         echo "无效选项: $choice"
         continue
     fi
@@ -331,12 +360,15 @@ while true; do
             stop_service
             ;;
         7)
-            uninstall_realm
+            restart_service
             ;;
         8)
+            uninstall_realm
+            ;;
+        9)
             cron_restart
             ;;  
-        9)
+        0)
             echo "退出脚本。"  # 显示退出消息
             exit 0            # 退出脚本
             ;;
