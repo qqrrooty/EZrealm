@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.1.0"
+CURRENT_VERSION="1.1.1"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -195,8 +195,8 @@ show_rules() {
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
   echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
-    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
+    # 搜索所有包含 listen 的行，表示转发规则的起始行
+    local lines=($(grep -n 'listen =' /root/realm/config.toml))
     
     if [ ${#lines[@]} -eq 0 ]; then
   echo -e "没有发现任何转发规则。"
