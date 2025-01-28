@@ -473,6 +473,7 @@ main_menu() {
     while true; do
         clear
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
+        echo -e "  "
         echo -e "           ${BLUE}Realm 高级管理脚本 v$CURRENT_VERSION"
         echo -e "     修改by：Azimi    修改日期：2025/1/29"
         echo -e "     修改内容：1.基本重做了脚本"
