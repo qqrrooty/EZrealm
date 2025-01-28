@@ -538,7 +538,9 @@ main_menu() {
                     clear
                 fi
                 ;;
-            0) exit 0 ;;
+            0) exit 0 
+               clear
+            ;;
             *) echo -e "${RED}无效选项！${NC}" ;;
         esac
         read -rp "按回车键继续..."
