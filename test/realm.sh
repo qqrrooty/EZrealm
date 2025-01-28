@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.8"
+CURRENT_VERSION="1.0.9"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -189,7 +189,7 @@ EOF
 }
 
 # 查看转发规则
-show_all_conf() {
+show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "--------------------------------------------------------"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
@@ -300,7 +300,7 @@ EOF
     done
 }
 
-delete_forward() {
+delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "--------------------------------------------------------"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
