@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.1"
+CURRENT_VERSION="1.0.2"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -302,9 +302,9 @@ EOF
 
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${BLUE}--------------------------------------------------------${NC}"
+  echo -e "${YELLOW}--------------------------------------------------------"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "${BLUE}--------------------------------------------------------${NC}"
+  echo -e "--------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
     local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
@@ -488,8 +488,8 @@ main_menu() {
         echo -e "     "
         echo -e "▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
-        echo -e "${BLUE}服务状态：$(service_control status)"
-        echo -e "安装状态：$(check_installed)${NC}"
+        echo -e "${YELLOW}服务状态：$(service_control status)${NC}"
+        echo -e "${YELLOW}安装状态：$(check_installed)${NC}"
         echo -e "  "
         echo -e "${YELLOW}---------------------------${NC}"
         echo "1. 安装/更新 Realm"
