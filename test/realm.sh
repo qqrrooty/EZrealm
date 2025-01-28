@@ -510,6 +510,7 @@ check_installed() {
 # 主界面
 # ========================================
 main_menu() {
+    clear
     init_check
 
     # 处理跳过更新检查参数
