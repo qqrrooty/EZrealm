@@ -30,8 +30,25 @@ init_check() {
         exit 1
     fi
 
+    # 检查curl安装
+    if ! command -v curl &> /dev/null; then
+        echo -e "${YELLOW}▶ 正在安装curl工具...${NC}"
+        if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y curl
+        elif command -v yum &> /dev/null; then
+            yum install -y curl
+        else
+            echo -e "${RED}✖ 无法安装curl，请手动安装${NC}"
+            exit 1
+        fi
+    fi
+
     # 创建必要目录
     mkdir -p "$REALM_DIR"
+    if [[ ! -w $(dirname "$LOG_FILE") ]]; then
+        echo -e "${RED}✖ 日志目录不可写，请检查权限${NC}"
+        exit 1
+    fi
     touch "$LOG_FILE" || {
         echo -e "${RED}✖ 无法创建日志文件${NC}"
         exit 1
@@ -49,76 +66,93 @@ log() {
 }
 
 # ========================================
+# 版本比较函数
+# ========================================
+version_compare() {
+    if [[ "$1" == "$2" ]]; then
+        return 0  # 版本相同
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    for ((i=0; i<${#ver1[@]}; i++)); do
+        if [[ -z ${ver2[i]} ]]; then
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]})); then
+            return 1  # 当前版本更高
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]})); then
+            return 2  # 远程版本更高
+        fi
+    done
+    return 0
+}
+
+# ========================================
 # 自动更新模块
 # ========================================
 check_update() {
     echo -e "\n${BLUE}▶ 正在检查更新...${NC}"
     
     # 获取远程版本
-    remote_version=$(curl -sL $VERSION_CHECK_URL 2>/dev/null | head -n1 | tr -d 'v')
+    remote_version=$(curl -sL $VERSION_CHECK_URL 2>> "$LOG_FILE" | head -n1 | tr -d 'v' | tr -d ' ')
+    if [[ -z "$remote_version" ]]; then
+        log "版本检查失败：无法获取远程版本"
+        echo -e "${RED}✖ 无法获取远程版本信息，请检查网络连接${NC}"
+        return 1
+    fi
     
     # 验证版本号格式
     if ! [[ "$remote_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log "版本检查失败：无效的远程版本号"
+        log "版本检查失败：无效的远程版本号 '$remote_version'"
+        echo -e "${RED}✖ 远程版本号格式错误${NC}"
         return 1
     fi
 
-    # 比较版本
-    if version_compare "$CURRENT_VERSION" "$remote_version"; then
-        echo -e "${GREEN}✓ 当前已是最新版本 v${CURRENT_VERSION}${NC}"
-        return 1
-    else
-        echo -e "${YELLOW}▶ 发现新版本 v${remote_version}${NC}"
-        return 0
-    fi
-}
-
-version_compare() {
-    [[ "$1" == "$2" ]] && return 0
-    local IFS=.
-    local i ver1=($1) ver2=($2)
-    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do ver1[i]=0; done
-    for ((i=0; i<${#ver1[@]}; i++)); do
-        [[ -z ${ver2[i]} ]] && ver2[i]=0
-        ((10#${ver1[i]} > 10#${ver2[i]})) && return 1
-    done
-    return 0
+    # 版本比较
+    version_compare "$CURRENT_VERSION" "$remote_version"
+    case $? in
+        0)
+            echo -e "${GREEN}✓ 当前已是最新版本 v${CURRENT_VERSION}${NC}"
+            return 1
+            ;;
+        1)
+            echo -e "${YELLOW}⚠ 本地版本 v${CURRENT_VERSION} 比远程版本 v${remote_version} 更高${NC}"
+            return 1
+            ;;
+        2)
+            echo -e "${YELLOW}▶ 发现新版本 v${remote_version}${NC}"
+            return 0
+            ;;
+    esac
 }
 
 perform_update() {
-    local tmp_file=$(mktemp /tmp/realm_update.XXXXXX)
+    echo -e "${BLUE}▶ 开始更新...${NC}"
+    log "尝试从 $UPDATE_URL 下载更新"
     
-    echo -e "${YELLOW}▶ 正在下载新版本...${NC}"
-    if ! curl -sL $UPDATE_URL -o "$tmp_file"; then
-        log "更新失败：下载错误"
-        echo -e "${RED}✖ 下载失败，请检查网络连接${NC}"
-        rm -f "$tmp_file"
+    # 下载临时文件
+    if ! curl -sL $UPDATE_URL -o "$0.tmp"; then
+        log "更新失败：下载脚本失败"
+        echo -e "${RED}✖ 下载更新失败，请检查网络${NC}"
         return 1
     fi
-
-    # 基础验证
-    if ! head -n1 "$tmp_file" | grep -q '^#!/bin/bash' || ! grep -q "CURRENT_VERSION" "$tmp_file"; then
-        log "更新失败：文件校验错误"
-        echo -e "${RED}✖ 文件校验失败，可能下载损坏${NC}"
-        rm -f "$tmp_file"
-        return 1
-    fi
-
-    # 获取新版本号
-    new_version=$(grep -m1 "CURRENT_VERSION=" "$tmp_file" | cut -d'"' -f2)
     
-    # 替换文件
-    chmod +x "$tmp_file"
-    if mv "$tmp_file" "$0"; then
-        log "成功更新到 v$new_version"
-        echo -e "\n${GREEN}✔ 更新成功！重启脚本...${NC}"
-        exec "$0" "$@"
-    else
-        log "更新失败：文件替换错误"
-        echo -e "${RED}✖ 文件替换失败，请检查权限${NC}"
-        rm -f "$tmp_file"
+    # 验证下载内容
+    if ! grep -q "CURRENT_VERSION" "$0.tmp"; then
+        log "更新失败：下载文件无效"
+        echo -e "${RED}✖ 下载文件校验失败${NC}"
+        rm -f "$0.tmp"
         return 1
     fi
+    
+    # 替换脚本
+    chmod +x "$0.tmp"
+    mv -f "$0.tmp" "$0"
+    log "更新完成，重启脚本"
+    
+    echo -e "${GREEN}✓ 更新成功，重新启动脚本...${NC}"
+    exec "$0" "$@"
 }
 
 # ========================================
