@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="0.1.2"
+CURRENT_VERSION="0.1.3"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -94,8 +94,8 @@ version_compare() {
 check_update() {
     echo -e "\n${BLUE}▶ 正在检查更新...${NC}"
     
-    # 获取远程版本
-    remote_version=$(curl -sL $VERSION_CHECK_URL 2>> "$LOG_FILE" | head -n1 | tr -d 'v' | tr -d ' ')
+    # 获取远程版本（更严格的过滤）
+    remote_version=$(curl -sL $VERSION_CHECK_URL 2>> "$LOG_FILE" | head -n1 | sed 's/[^0-9.]//g')
     if [[ -z "$remote_version" ]]; then
         log "版本检查失败：无法获取远程版本"
         echo -e "${RED}✖ 无法获取远程版本信息，请检查网络连接${NC}"
@@ -152,7 +152,8 @@ perform_update() {
     log "更新完成，重启脚本"
     
     echo -e "${GREEN}✓ 更新成功，重新启动脚本...${NC}"
-    exec "$0" "$@"
+    # 传递参数跳过更新检查
+    exec "$0" "--no-update" "$@"
 }
 
 # ========================================
@@ -510,7 +511,18 @@ check_installed() {
 # ========================================
 main_menu() {
     init_check
-    check_update && perform_update "$@"
+
+    # 处理跳过更新检查参数
+    local skip_update=false
+    if [[ "$1" == "--no-update" ]]; then
+        skip_update=true
+        shift
+    fi
+
+    # 首次运行检查更新
+    if ! $skip_update; then
+        check_update && perform_update "$@"
+    fi
 
     while true; do
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
