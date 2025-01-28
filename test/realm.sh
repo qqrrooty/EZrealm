@@ -280,12 +280,13 @@ show_rules() {
     echo -e "$sep_line" | sed 's/┬/┴/g'
 }
 
+# 添加转发规则
 add_rule() {
     log "添加转发规则"
     while : ; do
-        echo -e "\n${BLUE}▶ 添加新规则（输入q退出）${NC}"
+        echo -e "\n${BLUE}▶ 添加新规则（输入 q 退出）${NC}"
         
-        # 获取基础配置
+        # 获取输入
         read -rp "本地监听端口: " local_port
         [ "$local_port" = "q" ] && break
         read -rp "目标服务器IP: " remote_ip
@@ -319,24 +320,9 @@ add_rule() {
                 while : ; do
                     read -rp "请输入完整监听地址(格式如 0.0.0.0:80 或 [::]:443): " listen_addr
                     # 格式验证
-                    if ! [[ "$listen_addr" =~ ^[^:]+:[0-9]+$ ]]; then
-                        echo -e "${RED}✖ 格式错误！需包含端口号 (示例: 192.168.1.1:80)${NC}"
+                    if ! [[ "$listen_addr" =~ ^([0-9a-fA-F.:]+|\[.*\]):[0-9]+$ ]]; then
+                        echo -e "${RED}✖ 格式错误！示例: 0.0.0.0:80 或 [::]:443${NC}"
                         continue
-                    fi
-                    ip_part=$(cut -d: -f1 <<< "$listen_addr")
-                    port_part=$(cut -d: -f2 <<< "$listen_addr")
-                    # IPv6方括号检查
-                    if [[ "$ip_part" =~ ^\[.*\]$ ]]; then
-                        ipv6_real=$(tr -d '[]' <<< "$ip_part")
-                        if ! [[ "$ipv6_real" =~ ^[0-9a-fA-F:]+$ ]]; then
-                            echo -e "${RED}✖ IPv6地址格式错误！${NC}"
-                            continue
-                        fi
-                    elif [[ "$ip_part" =~ ^[0-9.]+$ ]]; then # IPv4基础格式
-                        if ! [[ "$ip_part" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-                            echo -e "${RED}✖ IPv4地址格式错误！${NC}"
-                            continue
-                        fi
                     fi
                     break
                 done
@@ -349,8 +335,8 @@ add_rule() {
                 ;;
         esac
 
-        # 写入配置文件（确保此处无转义符）
-        cat >> "$CONFIG_FILE" <<EOF
+        # 写入配置文件（关键修正点）
+        sudo tee -a "$CONFIG_FILE" > /dev/null <<EOF
 
 [[endpoints]]
 # 备注: $remark ($desc)
@@ -358,16 +344,17 @@ listen = "$listen_addr"
 remote = "$remote_ip:$remote_port"
 EOF
 
-        # 双栈模式提示
+        # 双栈提示
         if [ "$ip_choice" -eq 1 ]; then
-            echo -e "\n${CYAN}ℹ 双栈模式需要确保 Realm 主配置满足以下条件：${NC}"
-            echo -e "${CYAN}   [network] 段中 ipv6_only = false (默认值)${NC}"
-            echo -e "${CYAN}   系统已启用 IPv6 双栈支持 (sysctl net.ipv6.bindv6only=0)${NC}"
+            echo -e "\n${CYAN}ℹ 双栈监听需要确保：${NC}"
+            echo -e "${CYAN}   - Realm 配置中 [network] 段的 ipv6_only = false${NC}"
+            echo -e "${CYAN}   - 系统已启用 IPv6 双栈支持 (sysctl net.ipv6.bindv6only=0)${NC}"
         fi
 
-        systemctl restart realm
-        log "添加规则：$listen_addr → $remote_ip:$remote_port"
-        echo -e "${GREEN}✔ 规则已添加！${NC}"
+        # 重启服务
+        sudo systemctl restart realm.service
+        log "规则已添加: $listen_addr → $remote_ip:$remote_port"
+        echo -e "${GREEN}✔ 添加成功！${NC}"
         
         read -rp "继续添加？(y/n): " cont
         [[ "$cont" != "y" ]] && break
