@@ -524,7 +524,7 @@ main_menu() {
     if ! $skip_update; then
         check_update && perform_update "$@"
     fi
-
+    clear
     while true; do
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
@@ -584,8 +584,7 @@ main_menu() {
                     exit 0
                 fi
                 ;;
-            0) clear
-               exit 0 
+            0) exit 0 
             ;;
             *) echo -e "${RED}无效选项！${NC}" ;;
         esac
