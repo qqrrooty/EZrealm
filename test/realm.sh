@@ -191,35 +191,45 @@ EOF
 show_rules() {
     log "查看转发规则"
     
-    # 预计算列宽（序号列固定4字符）
-    max_listen=10
-    max_remote=10
-    max_remark=10
-    rule_count=0
+    # 初始化列宽为0
+    local max_listen=0 max_remote=0 max_remark=0 rule_count=0
+
+    # 第一遍扫描计算列宽
     while IFS= read -r line; do
         if [[ "$line" == "[["* ]]; then
             local remark="" listen="" remote=""
             while IFS= read -r config_line && [[ "$config_line" != "[["* ]]; do
                 case $config_line in
                     "# 备注:"*) remark="${config_line#*: }" ;;
-                    "listen ="*) listen="${config_line#*\"}"; listen="${listen%\"*}" ;;
-                    "remote ="*) remote="${config_line#*\"}"; remote="${remote%\"*}" ;;
+                    "listen ="*) 
+                        listen="${config_line#*\"}"
+                        listen="${listen%\"*}"
+                        # 计算实际长度（去除颜色代码）
+                        raw_len=$(echo -e "$listen" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g' | wc -m)
+                        (( raw_len > max_listen )) && max_listen=$raw_len
+                        ;;
+                    "remote ="*) 
+                        remote="${config_line#*\"}"
+                        remote="${remote%\"*}"
+                        raw_len=$(echo -e "$remote" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g' | wc -m)
+                        (( raw_len > max_remote )) && max_remote=$raw_len
+                        ;;
                 esac
             done
             
-            # 去除颜色代码计算实际长度
-            raw_listen=$(echo -e "$listen" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
-            raw_remote=$(echo -e "$remote" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+            # 计算备注列宽
             raw_remark=$(echo -e "$remark" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
-            
-            (( ${#raw_listen} > max_listen )) && max_listen=${#raw_listen}
-            (( ${#raw_remote} > max_remote )) && max_remote=${#raw_remote}
             (( ${#raw_remark} > max_remark )) && max_remark=${#raw_remark}
             ((rule_count++))
         fi
-    done < <(cat "$CONFIG_FILE" && echo "[[endpoints]]")  # 添加结束标记
+    done < <(cat "$CONFIG_FILE" && echo "[[endpoints]]")
 
-    # 动态生成分隔线（序号列固定4字符）
+    # 设置最小列宽
+    (( max_listen < 10 )) && max_listen=10
+    (( max_remote < 10 )) && max_remote=10
+    (( max_remark < 6 )) && max_remark=6
+
+    # 动态生成表格
     sep_line=$(printf "┌─%*s─┬─%*s─┬─%*s─┬─%*s─┐" \
         4 "" $((max_listen+2)) "" $((max_remote+2)) "" $((max_remark+2)) "" |
         sed 's/ /─/g')
@@ -233,7 +243,7 @@ show_rules() {
         $max_remark "备注"
     echo -e "$sep_line" | sed 's/┬/┼/g'
 
-    # 重新解析并打印（带序号）
+    # 第二遍扫描输出带颜色的内容
     awk -v max_listen="$max_listen" -v max_remote="$max_remote" -v max_remark="$max_remark" '
         BEGIN { 
             RS="\\[\\[endpoints\\]\\]"
