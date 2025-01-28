@@ -380,17 +380,23 @@ delete_rule() {
 service_control() {
     case $1 in
         start)
-            systemctl start realm
+            sudo systemctl unmask realm.service
+            sudo systemctl daemon-reload
+            sudo systemctl restart realm.service
+            sudo systemctl enable realm.service
             log "启动服务"
             echo -e "${GREEN}✔ 服务已启动${NC}"
             ;;
         stop)
-            systemctl stop realm
+            sudo systemctl stop realm
             log "停止服务"
             echo -e "${YELLOW}⚠ 服务已停止${NC}"
             ;;
         restart)
-            systemctl restart realm
+            sudo systemctl unmask realm.service
+            sudo systemctl daemon-reload
+            sudo systemctl restart realm.service
+            sudo systemctl enable realm.service
             log "重启服务"
             echo -e "${GREEN}✔ 服务已重启${NC}"
             ;;
@@ -415,7 +421,7 @@ manage_cron() {
         1)
             read -rp "输入每日重启时间 (0-23): " hour
             if [[ "$hour" =~ ^[0-9]+$ ]] && (( hour >= 0 && hour <= 23 )); then
-                (crontab -l 2>/dev/null; echo "0 $hour * * * systemctl restart realm") | crontab -
+                echo "0 $hour * * * root /usr/bin/systemctl restart realm" >>/etc/crontab
                 log "添加定时任务：每日 $hour 时重启"
                 echo -e "${GREEN}✔ 定时任务已添加！${NC}"
             else
@@ -423,13 +429,13 @@ manage_cron() {
             fi
             ;;
         2)
-            crontab -l | grep -v "realm" | crontab -
+            sed -i "/realm/d" /etc/crontab
             log "清除定时任务"
             echo -e "${YELLOW}✔ 定时任务已清除！${NC}"
             ;;
         3)
             echo -e "\n${BLUE}当前定时任务：${NC}"
-            crontab -l | grep --color=auto "realm"
+            cat /etc/crontab | grep --color=auto "realm"
             ;;
         *)
             echo -e "${RED}✖ 无效选择！${NC}"
@@ -445,7 +451,9 @@ uninstall() {
     systemctl disable realm
     rm -rf "$REALM_DIR"
     rm -f "$SERVICE_FILE"
-    crontab -l | grep -v "realm" | crontab -
+    rm -rf /root/realm
+    rm -rf "$(pwd)"/realm.sh
+    sed -i "/realm/d" /etc/crontab
     systemctl daemon-reload
     
     log "卸载完成"
@@ -523,7 +531,11 @@ main_menu() {
                 ;;
             10) 
                 read -rp "确认完全卸载？(y/n): " confirm
-                [[ "$confirm" == "y" ]] && uninstall
+                if [[ "$confirm" == "y" ]]; then
+                    uninstall
+                    read -rp "按回车键继续..."
+                    exit 0
+                fi
                 ;;
             0) exit 0 ;;
             *) echo -e "${RED}无效选项！${NC}" ;;
