@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.3"
+CURRENT_VERSION="1.0.4"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -537,17 +537,24 @@ main_menu() {
         echo -e "${BLUE}服务状态：$(service_control status)"
         echo -e "安装状态：$(check_installed)${NC}"
         echo -e "  "
-        echo -e "${YELLOW}-----------------------------------------${NC}"
+        echo -e "${YELLOW}---------------------------${NC}"
         echo "1. 安装/更新 Realm"
+        echo -e "${YELLOW}---------------------------${NC}"
         echo "2. 添加转发规则"
         echo "3. 查看转发规则"
         echo "4. 删除转发规则"
-        echo "5. 服务管理（启动/停止/重启）"
-        echo "6. 定时任务管理"
-        echo "7. 查看日志"
-        echo "8. 完全卸载"
+        echo -e "${YELLOW}---------------------------${NC}"
+        echo "5. 启动服务"
+        echo "6. 停止服务"
+        echo "7. 重启服务"
+        echo -e "${YELLOW}---------------------------${NC}"
+        echo "8. 定时任务管理"
+        echo "9. 查看日志"
+        echo -e "${YELLOW}---------------------------${NC}"
+        echo "10. 完全卸载"
+        echo -e "${YELLOW}---------------------------${NC}"
         echo "0. 退出脚本"
-        echo -e "${YELLOW}-----------------------------------------${NC}"
+        echo -e "${YELLOW}---------------------------${NC}"
 
         read -rp "请输入选项: " choice
         case $choice in
@@ -555,25 +562,15 @@ main_menu() {
             2) add_rule ;;
             3) show_rules ;;
             4) delete_rule ;;
-            5) 
-                echo -e "\n${BLUE}服务管理：${NC}"
-                echo "1. 启动服务"
-                echo "2. 停止服务"
-                echo "3. 重启服务"
-                read -rp "请选择: " sub_choice
-                case $sub_choice in
-                    1) service_control start ;;
-                    2) service_control stop ;;
-                    3) service_control restart ;;
-                    *) echo -e "${RED}无效选择！${NC}" ;;
-                esac
-                ;;
-            6) manage_cron ;;
-            7) 
+            5) service_control start ;;
+            6) service_control stop ;;
+            7) service_control restart ;;
+            8) manage_cron ;;
+            9) 
                 echo -e "\n${BLUE}最近日志：${NC}"
                 tail -n 10 "$LOG_FILE" 
                 ;;
-            8) 
+            10) 
                 read -rp "确认完全卸载？(y/n): " confirm
                 [[ "$confirm" == "y" ]] && uninstall
                 ;;
