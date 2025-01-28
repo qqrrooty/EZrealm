@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.1"
+CURRENT_VERSION="1.0.3"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -284,30 +284,89 @@ add_rule() {
     log "添加转发规则"
     while : ; do
         echo -e "\n${BLUE}▶ 添加新规则（输入q退出）${NC}"
+        
+        # 获取基础配置
         read -rp "本地监听端口: " local_port
         [ "$local_port" = "q" ] && break
-        
         read -rp "目标服务器IP: " remote_ip
         read -rp "目标端口: " remote_port
         read -rp "规则备注: " remark
 
-        # 验证输入
+        # 输入验证
         if ! [[ "$local_port" =~ ^[0-9]+$ ]] || ! [[ "$remote_port" =~ ^[0-9]+$ ]]; then
             echo -e "${RED}✖ 端口必须为数字！${NC}"
             continue
         fi
 
-        # 追加配置
+        # 监听模式选择
+        echo -e "\n${YELLOW}请选择监听模式：${NC}"
+        echo "1) 双栈监听 [::]:${local_port} (默认)"
+        echo "2) 仅IPv4监听 0.0.0.0:${local_port}"
+        echo "3) 自定义监听地址"
+        read -rp "请输入选项 [1-3] (默认1): " ip_choice
+        ip_choice=${ip_choice:-1}
+
+        case $ip_choice in
+            1)
+                listen_addr="[::]:$local_port"
+                desc="双栈监听"
+                ;;
+            2)
+                listen_addr="0.0.0.0:$local_port"
+                desc="仅IPv4"
+                ;;
+            3)
+                while : ; do
+                    read -rp "请输入完整监听地址(格式如 0.0.0.0:80 或 [::]:443): " listen_addr
+                    # 格式验证
+                    if ! [[ "$listen_addr" =~ ^[^:]+:[0-9]+$ ]]; then
+                        echo -e "${RED}✖ 格式错误！需包含端口号 (示例: 192.168.1.1:80)${NC}"
+                        continue
+                    fi
+                    ip_part=$(cut -d: -f1 <<< "$listen_addr")
+                    port_part=$(cut -d: -f2 <<< "$listen_addr")
+                    # IPv6方括号检查
+                    if [[ "$ip_part" =~ ^\[.*\]$ ]]; then
+                        ipv6_real=$(tr -d '[]' <<< "$ip_part")
+                        if ! [[ "$ipv6_real" =~ ^[0-9a-fA-F:]+$ ]]; then
+                            echo -e "${RED}✖ IPv6地址格式错误！${NC}"
+                            continue
+                        fi
+                    elif [[ "$ip_part" =~ ^[0-9.]+$ ]]; then # IPv4基础格式
+                        if ! [[ "$ip_part" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+                            echo -e "${RED}✖ IPv4地址格式错误！${NC}"
+                            continue
+                        fi
+                    fi
+                    break
+                done
+                desc="自定义监听"
+                ;;
+            *)
+                echo -e "${RED}无效选择，使用默认值！${NC}"
+                listen_addr="[::]:$local_port"
+                desc="双栈监听"
+                ;;
+        esac
+
+        # 写入配置文件
         cat >> "$CONFIG_FILE" <<EOF
 
 [[endpoints]]
-# 备注: $remark
-listen = "[::]:$local_port"
+# 备注: $remark ($desc)
+listen = "$listen_addr"
 remote = "$remote_ip:$remote_port"
 EOF
 
+        # 双栈模式提示
+        if [ "$ip_choice" -eq 1 ]; then
+            echo -e "\n${CYAN}ℹ 双栈模式需要确保 Realm 主配置满足以下条件：${NC}"
+            echo -e "${CYAN}   [network] 段中 ipv6_only = false (默认值)${NC}"
+            echo -e "${CYAN}   系统已启用 IPv6 双栈支持 (sysctl net.ipv6.bindv6only=0)${NC}"
+        fi
+
         systemctl restart realm
-        log "添加规则：$local_port → $remote_ip:$remote_port ($remark)"
+        log "添加规则：$listen_addr → $remote_ip:$remote_port"
         echo -e "${GREEN}✔ 规则已添加！${NC}"
         
         read -rp "继续添加？(y/n): " cont
