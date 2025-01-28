@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.5"
+CURRENT_VERSION="1.0.6"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -364,9 +364,9 @@ EOF
 delete_rule() {
     log "删除转发规则"
     
-    # 获取有效规则总数（排除注释中的[[endpoints]]）
+    # 获取有效规则总数（排除注释块）
     local total=$(awk '
-        /^\[\[endpoints\]\]/ && !/^#/ { count++ } 
+        /^\[\[endpoints\]\]/ && !/^[[:space:]]*#/ { count++ } 
         END { print count }
     ' "$CONFIG_FILE")
     
@@ -379,36 +379,40 @@ delete_rule() {
     
     read -rp "输入要删除的规则序号 (1-$total): " num
     if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= total )); then
-        # 使用更严格的awk处理规则块
+        # 使用改进的 awk 处理逻辑
         awk -v del_num="$num" '
             BEGIN { 
-                RS="\n\\[\\[endpoints\\]\\]\n"; 
-                FS="\n"
-                ORS=""
-                rule_index=0
+                # 设置记录分隔符为 "[[endpoints]]" 行（兼容前后空格和注释）
+                RS = "(\n[[:space:]]*)?\\[\\[endpoints\\]\\][[:space:]]*(\n|[[:space:]]*#)";
+                ORS = "";
+                rule_index = 0;
             }
             {
-                # 处理第一个非规则块内容
-                if (NR == 1 && $0 !~ /^\[\[endpoints\]\]/) {
-                    print $0
+                # 跳过纯注释块
+                if ($0 ~ /^[[:space:]]*#/) { next }
+
+                # 检查是否为有效规则（包含 listen 或 remote 字段）
+                if ($0 ~ /listen[[:space:]]*=/ || $0 ~ /remote[[:space:]]*=/) {
+                    rule_index++
+                    current_block = $0
+                } else {
+                    # 非规则块直接保留
+                    print $0 RT
                     next
                 }
-                
-                # 跳过注释块
-                if ($0 ~ /^#/) { 
-                    print $0 RS
-                    next 
-                }
-                
-                rule_index++
+
+                # 判断是否需要删除当前规则
                 if (rule_index != del_num) {
-                    # 保留非删除规则的完整块
-                    if (rule_index == 1) {
-                        print "[[endpoints]]" $0
-                    } else {
-                        print RS "[[endpoints]]" $0
+                    # 重建规则块格式
+                    if (rule_index > 1) {
+                        print "\n"
                     }
+                    print "[[endpoints]]\n" current_block
                 }
+            }
+            END {
+                # 确保文件末尾有换行
+                print "\n"
             }
         ' "$CONFIG_FILE" > tmp_config && mv tmp_config "$CONFIG_FILE"
         
