@@ -192,7 +192,7 @@ EOF
 show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
+  printf "%-5s| %-30s| %-38s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
   echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
@@ -213,7 +213,7 @@ show_rules() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
         
-    printf "%-4s| %-29s| %-29s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-4s| %-24s| %-34s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
@@ -303,7 +303,7 @@ EOF
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
+  printf "%-5s| %-30s| %-38s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
   echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
@@ -328,7 +328,7 @@ delete_rule() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
-    printf "%-4s| %-29s| %-29s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-4s| %-24s| %-34s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
