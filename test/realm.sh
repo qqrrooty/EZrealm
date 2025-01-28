@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.2"
+CURRENT_VERSION="1.0.3"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -192,7 +192,7 @@ EOF
 show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "    本地地址:端口 " "    目标地址:端口 " "备注"
   echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
@@ -213,7 +213,7 @@ show_rules() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
         
-    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-4s| %-28s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
@@ -303,7 +303,7 @@ EOF
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "    本地地址:端口 " "    目标地址:端口 " "备注"
   echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
@@ -328,7 +328,7 @@ delete_rule() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
-    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-4s| %-28s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
@@ -472,7 +472,7 @@ main_menu() {
 
     while true; do
         clear
-        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
+        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "      ${BLUE}Realm 高级管理脚本 v$CURRENT_VERSION"
         echo -e "     修改by：Azimi    修改日期：2025/1/29"
@@ -486,29 +486,29 @@ main_menu() {
         echo -e "     (3)该脚本只在debian系统下测试，未做其他系统适配，安装命令有别，可能无法启动。如若遇到问题，请自行解决"
         echo -e "     仓库：https://github.com/qqrrooty/EZrealm${NC}"
         echo -e "     "
-        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
+        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "${YELLOW}服务状态：$(service_control status)${NC}"
         echo -e "${YELLOW}安装状态：$(check_installed)${NC}"
         echo -e "  "
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
         echo "1. 安装/更新 Realm"
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
         echo "2. 添加转发规则"
         echo "3. 查看转发规则"
         echo "4. 删除转发规则"
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
         echo "5. 启动服务"
         echo "6. 停止服务"
         echo "7. 重启服务"
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
         echo "8. 定时任务管理"
         echo "9. 查看日志"
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
         echo "10. 完全卸载"
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
         echo "0. 退出脚本"
-        echo -e "${YELLOW}---------------------------${NC}"
+        echo -e "${YELLOW}--------------${NC}"
 
         read -rp "请输入选项: " choice
         case $choice in
