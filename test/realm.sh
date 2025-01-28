@@ -513,7 +513,6 @@ main_menu() {
     check_update && perform_update "$@"
 
     while true; do
-        clear
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "           ${BLUE}Realm 高级管理脚本 v$CURRENT_VERSION"
