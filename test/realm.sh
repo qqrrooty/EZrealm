@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.6"
+CURRENT_VERSION="1.0.7"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -200,7 +200,7 @@ show_rules() {
             local remark="" listen="" remote=""
             while IFS= read -r config_line && [[ "$config_line" != "[["* ]]; do
                 case $config_line in
-                    "# 备注:"*) remark="${config_line#*: }" ;;
+                    *"# 备注:"*) remark="${config_line#*# 备注: }" ;;
                     "listen ="*) 
                         listen="${config_line#*\"}"
                         listen="${listen%\"*}"
@@ -365,10 +365,7 @@ delete_rule() {
     log "删除转发规则"
     
     # 获取有效规则总数（排除注释块）
-    local total=$(awk '
-        /^\[\[endpoints\]\]/ && !/^[[:space:]]*#/ { count++ } 
-        END { print count }
-    ' "$CONFIG_FILE")
+    local total=$(awk '/^\[\[endpoints\]\]/ && !/^[[:space:]]*#/ { count++ } END { print count }' "$CONFIG_FILE")
     
     if [ "$total" -eq 0 ]; then
         echo -e "${RED}✖ 没有可删除的规则${NC}"
@@ -382,37 +379,34 @@ delete_rule() {
         # 使用改进的 awk 处理逻辑
         awk -v del_num="$num" '
             BEGIN { 
-                # 设置记录分隔符为 "[[endpoints]]" 行（兼容前后空格和注释）
-                RS = "(\n[[:space:]]*)?\\[\\[endpoints\\]\\][[:space:]]*(\n|[[:space:]]*#)";
+                RS = "\n\\[\\[endpoints\\]\\][[:space:]]*\n";
                 ORS = "";
                 rule_index = 0;
+                output = "";
             }
             {
-                # 跳过纯注释块
-                if ($0 ~ /^[[:space:]]*#/) { next }
-
-                # 检查是否为有效规则（包含 listen 或 remote 字段）
-                if ($0 ~ /listen[[:space:]]*=/ || $0 ~ /remote[[:space:]]*=/) {
-                    rule_index++
-                    current_block = $0
-                } else {
-                    # 非规则块直接保留
-                    print $0 RT
-                    next
-                }
-
-                # 判断是否需要删除当前规则
-                if (rule_index != del_num) {
-                    # 重建规则块格式
-                    if (rule_index > 1) {
-                        print "\n"
+                # 跳过初始空记录
+                if (NR == 1 && $0 == "") next
+                
+                # 记录分隔符后的内容处理
+                if (RT == "[[endpoints]]\n") {
+                    # 处理前一个记录
+                    if (rule_index > 0) {
+                        if (rule_index != del_num) {
+                            output = output "[[endpoints]]\n" $0
+                        }
+                        rule_index++
+                    } else {
+                        # 第一个记录前的内容
+                        output = $0
                     }
-                    print "[[endpoints]]\n" current_block
+                } else {
+                    # 非规则块内容直接保留
+                    output = output $0 RT
                 }
             }
             END {
-                # 确保文件末尾有换行
-                print "\n"
+                print output
             }
         ' "$CONFIG_FILE" > tmp_config && mv tmp_config "$CONFIG_FILE"
         
