@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.0"
+CURRENT_VERSION="1.0.1"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -190,28 +190,84 @@ EOF
 
 show_rules() {
     log "查看转发规则"
-    echo -e "\n${YELLOW}当前转发规则：${NC}"
-    echo -e "┌──────┬───────────────┬───────────────────────┬────────────┐"
-    echo -e "│ 序号 │ 本地端口      │ 目标地址              │ 备注       │"
-    echo -e "├──────┼───────────────┼───────────────────────┼────────────┤"
-
-    local index=1
+    
+    # 预计算列宽（序号列固定4字符）
+    max_listen=10
+    max_remote=10
+    max_remark=10
+    rule_count=0
     while IFS= read -r line; do
         if [[ "$line" == "[["* ]]; then
             local remark="" listen="" remote=""
             while IFS= read -r config_line && [[ "$config_line" != "[["* ]]; do
                 case $config_line in
                     "# 备注:"*) remark="${config_line#*: }" ;;
-                    "listen ="*) listen="${config_line#*\"}" | tr -d '"' ;;
-                    "remote ="*) remote="${config_line#*\"}" | tr -d '"' ;;
+                    "listen ="*) listen="${config_line#*\"}"; listen="${listen%\"*}" ;;
+                    "remote ="*) remote="${config_line#*\"}"; remote="${remote%\"*}" ;;
                 esac
             done
-            printf "│ %-4d │ %-13s │ %-21s │ %-10s │\n" "$index" "${listen##*:}" "$remote" "$remark"
-            ((index++))
+            
+            # 去除颜色代码计算实际长度
+            raw_listen=$(echo -e "$listen" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+            raw_remote=$(echo -e "$remote" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+            raw_remark=$(echo -e "$remark" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+            
+            (( ${#raw_listen} > max_listen )) && max_listen=${#raw_listen}
+            (( ${#raw_remote} > max_remote )) && max_remote=${#raw_remote}
+            (( ${#raw_remark} > max_remark )) && max_remark=${#raw_remark}
+            ((rule_count++))
         fi
-    done < "$CONFIG_FILE"
+    done < <(cat "$CONFIG_FILE" && echo "[[endpoints]]")  # 添加结束标记
 
-    echo -e "└──────┴───────────────┴───────────────────────┴────────────┘"
+    # 动态生成分隔线（序号列固定4字符）
+    sep_line=$(printf "┌─%*s─┬─%*s─┬─%*s─┬─%*s─┐" \
+        4 "" $((max_listen+2)) "" $((max_remote+2)) "" $((max_remark+2)) "" |
+        sed 's/ /─/g')
+
+    echo -e "\n${YELLOW}当前转发规则（共 ${rule_count} 条）：${NC}"
+    echo -e "$sep_line"
+    printf "│ %-4s │ %-*s │ %-*s │ %-*s │\n" \
+        "序号" \
+        $max_listen "本地地址" \
+        $max_remote "目标地址" \
+        $max_remark "备注"
+    echo -e "$sep_line" | sed 's/┬/┼/g'
+
+    # 重新解析并打印（带序号）
+    awk -v max_listen="$max_listen" -v max_remote="$max_remote" -v max_remark="$max_remark" '
+        BEGIN { 
+            RS="\\[\\[endpoints\\]\\]"
+            FS="\n"
+            idx=1
+        }
+        NR > 1 {
+            listen=""; remote=""; remark=""
+            for (i=1; i<=NF; i++) {
+                if ($i ~ /^# 备注:/) {
+                    split($i, arr, ": ");
+                    remark = arr[2]
+                }
+                if ($i ~ /listen[[:space:]]*=/) {
+                    split($i, arr, "\"");
+                    listen = arr[2]
+                }
+                if ($i ~ /remote[[:space:]]*=/) {
+                    split($i, arr, "\"");
+                    remote = arr[2]
+                }
+            }
+            if (listen != "" && remote != "") {
+                # 添加颜色代码并保持对齐
+                printf "│ \033[33m%-4d\033[0m │ \033[36m%-*s\033[0m │ \033[32m%-*s\033[0m │ %-*s │\n", 
+                    idx++,
+                    max_listen, listen, 
+                    max_remote, remote, 
+                    max_remark, remark
+            }
+        }
+    ' "$CONFIG_FILE"
+
+    echo -e "$sep_line" | sed 's/┬/┴/g'
 }
 
 add_rule() {
@@ -236,7 +292,7 @@ add_rule() {
 
 [[endpoints]]
 # 备注: $remark
-listen = "0.0.0.0:$local_port"
+listen = "[::]:$local_port"
 remote = "$remote_ip:$remote_port"
 EOF
 
@@ -251,17 +307,26 @@ EOF
 
 delete_rule() {
     log "删除转发规则"
-    show_rules
+    show_rules  # 显示带序号的规则列表
+    
     local total=$(grep -c "^\[\[endpoints\]\]" "$CONFIG_FILE")
     [ "$total" -eq 0 ] && return
 
     read -rp "输入要删除的规则序号 (1-$total): " num
     if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= total )); then
+        # 使用AWK精确删除指定序号的规则块
         awk -v del_num="$num" '
-            /^\[\[endpoints\]\]/ { count++ }
-            count != del_num { print }
-            count == del_num { skip=1 }
-            skip && /^$/ { skip=0 }
+            BEGIN { RS="\\[\\[endpoints\\]\\]"; ORS=""; block_count=0 }
+            {
+                if (block_count++ == 0) { 
+                    # 保留第一个非endpoints块的内容
+                    if ($0 !~ /^\[\[endpoints\]\]/) print 
+                    next 
+                }
+                if (block_count-1 != del_num) { 
+                    print "[[endpoints]]" $0 
+                }
+            }
         ' "$CONFIG_FILE" > tmp_config && mv tmp_config "$CONFIG_FILE"
         
         systemctl restart realm
