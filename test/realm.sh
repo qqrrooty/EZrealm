@@ -191,9 +191,9 @@ EOF
 # 查看转发规则
 show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${BLUE}--------------------------------------------------------${NC}"
+  echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "${BLUE}--------------------------------------------------------${NC}"
+  echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
@@ -214,7 +214,7 @@ show_rules() {
         local remote_ip_port=$remote_info
         
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "${BLUE}--------------------------------------------------------${NC}"
+    echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
 }
@@ -302,9 +302,9 @@ EOF
 
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${YELLOW}--------------------------------------------------------"
+  echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "--------------------------------------------------------${NC}"
+  echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
     local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
@@ -329,7 +329,7 @@ delete_rule() {
         local remote_ip_port=$remote_info
 
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "${BLUE}--------------------------------------------------------${NC}"
+    echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
 
@@ -472,9 +472,9 @@ main_menu() {
 
     while true; do
         clear
-        echo -e "${BLUE}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂"
+        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
-        echo -e "      Realm 高级管理脚本 v$CURRENT_VERSION"
+        echo -e "      ${BLUE}Realm 高级管理脚本 v$CURRENT_VERSION"
         echo -e "     修改by：Azimi    修改日期：2025/1/29"
         echo -e "  "
         echo -e "     修改内容：1.基本重做了脚本"
@@ -484,9 +484,9 @@ main_menu() {
         echo -e "     (1)安装前请先更新系统软件包，缺少命令可能无法安装"
         echo -e "     (2)如果启动失败请检查 /root/realm/config.toml下有无多余配置或者卸载后重新配置"
         echo -e "     (3)该脚本只在debian系统下测试，未做其他系统适配，安装命令有别，可能无法启动。如若遇到问题，请自行解决"
-        echo -e "     仓库：https://github.com/qqrrooty/EZrealm"
+        echo -e "     仓库：https://github.com/qqrrooty/EZrealm${NC}"
         echo -e "     "
-        echo -e "▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
+        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "${YELLOW}服务状态：$(service_control status)${NC}"
         echo -e "${YELLOW}安装状态：$(check_installed)${NC}"
