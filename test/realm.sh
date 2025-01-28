@@ -192,7 +192,7 @@ EOF
 show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "--------------------------------------------------------"
-  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  printf "%-5s| %-15s| %-35s| %-20s\n" "${YELLOW}序号${NC}" "${YELLOW}本地地址:端口${NC} " "    ${YELLOW}目的地地址:端口${NC} " "${YELLOW}备注${NC}"
   echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
@@ -278,7 +278,7 @@ add_rule() {
         sudo tee -a "$CONFIG_FILE" > /dev/null <<EOF
 
 [[endpoints]]
-# 备注: $remark ($desc)
+# 备注: $remark 
 listen = "$listen_addr"
 remote = "$remote_ip:$remote_port"
 EOF
@@ -303,7 +303,7 @@ EOF
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "--------------------------------------------------------"
-  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  printf "%-5s| %-15s| %-35s| %-20s\n" "${YELLOW}序号${NC}" "${YELLOW}本地地址:端口${NC} " "    ${YELLOW}目的地地址:端口${NC} " "${YELLOW}备注${NC}"
   echo -e "--------------------------------------------------------"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
