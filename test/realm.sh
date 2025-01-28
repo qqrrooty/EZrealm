@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.3"
+CURRENT_VERSION="1.0.4"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -192,7 +192,7 @@ EOF
 show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "    本地地址:端口 " "    目标地址:端口 " "备注"
+  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
   echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
@@ -303,7 +303,7 @@ EOF
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
   echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "    本地地址:端口 " "    目标地址:端口 " "备注"
+  printf "%-5s| %-35s| %-35s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
   echo -e "${NC}${BLUE}-----------------------------------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
