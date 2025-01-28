@@ -535,13 +535,13 @@ main_menu() {
                     uninstall
                     read -rp "按回车键继续..."
                     exit 0
+                    clear
                 fi
                 ;;
             0) exit 0 ;;
             *) echo -e "${RED}无效选项！${NC}" ;;
         esac
         read -rp "按回车键继续..."
-        clear
     done
 }
 
