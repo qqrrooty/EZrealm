@@ -349,7 +349,7 @@ add_rule() {
                 ;;
         esac
 
-        # 写入配置文件
+        # 写入配置文件（确保此处无转义符）
         cat >> "$CONFIG_FILE" <<EOF
 
 [[endpoints]]
