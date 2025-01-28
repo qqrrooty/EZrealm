@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.4"
+CURRENT_VERSION="1.0.5"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -213,7 +213,7 @@ show_rules() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
         
-    printf "%-4s| %-28s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-4s| %-29s| %-29s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
@@ -328,7 +328,7 @@ delete_rule() {
         local listen_ip_port=$listen_info
         local remote_ip_port=$remote_info
 
-    printf "%-4s| %-28s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    printf "%-4s| %-29s| %-29s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
     echo -e "${BLUE}-----------------------------------------------------------------------------------${NC}"
         let index+=1
     done
