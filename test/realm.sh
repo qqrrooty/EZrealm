@@ -509,6 +509,17 @@ uninstall() {
 }
 
 # ========================================
+# 安装状态检测
+# ========================================
+check_installed() {
+    if [[ -f "$REALM_DIR/realm" && -f "$SERVICE_FILE" ]]; then
+        echo -e "${GREEN}已安装${NC}"
+    else
+        echo -e "${RED}未安装${NC}"
+    fi
+}
+
+# ========================================
 # 主界面
 # ========================================
 main_menu() {
@@ -518,9 +529,14 @@ main_menu() {
     while true; do
         clear
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂"
+        echo -e "  "
         echo -e "      Realm 高级管理脚本 v$CURRENT_VERSION"
+        echo -e "  "
         echo -e "▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
-        echo -e "${BLUE}服务状态：$(service_control status)${NC}"
+        echo -e "  "
+        echo -e "${BLUE}服务状态：$(service_control status)"
+        echo -e "安装状态：$(check_installed)${NC}"
+        echo -e "  "
         echo -e "${YELLOW}-----------------------------------------${NC}"
         echo "1. 安装/更新 Realm"
         echo "2. 添加转发规则"
