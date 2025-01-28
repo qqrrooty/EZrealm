@@ -1,379 +1,413 @@
 #!/bin/bash
 
-# 检查realm是否已安装
-if [ -f "/root/realm/realm" ]; then
-    echo "检测到realm已安装。"
-    realm_status="已安装"
-    realm_status_color="\033[0;32m" # 绿色
-else
-    echo "realm未安装。"
-    realm_status="未安装"
-    realm_status_color="\033[0;31m" # 红色
-fi
+# ========================================
+# 全局配置
+# ========================================
+CURRENT_VERSION="1.0.0"
+UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
+VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
+REALM_DIR="/root/realm"
+CONFIG_FILE="$REALM_DIR/config.toml"
+SERVICE_FILE="/etc/systemd/system/realm.service"
+LOG_FILE="/var/log/realm_manager.log"
 
-# 检查realm服务状态
-check_realm_service_status() {
-    if systemctl is-active --quiet realm; then
-        echo -e "\033[0;32m启用\033[0m" # 绿色
+# ========================================
+# 颜色定义
+# ========================================
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# ========================================
+# 初始化检查
+# ========================================
+init_check() {
+    # 检查root权限
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}✖ 必须使用root权限运行本脚本${NC}"
+        exit 1
+    fi
+
+    # 创建必要目录
+    mkdir -p "$REALM_DIR"
+    touch "$LOG_FILE" || {
+        echo -e "${RED}✖ 无法创建日志文件${NC}"
+        exit 1
+    }
+
+    log "脚本启动 v$CURRENT_VERSION"
+}
+
+# ========================================
+# 日志系统
+# ========================================
+log() {
+    local log_msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo -e "$log_msg" >> "$LOG_FILE"
+}
+
+# ========================================
+# 自动更新模块
+# ========================================
+check_update() {
+    echo -e "\n${BLUE}▶ 正在检查更新...${NC}"
+    
+    # 获取远程版本
+    remote_version=$(curl -sL $VERSION_CHECK_URL 2>/dev/null | head -n1 | tr -d 'v')
+    
+    # 验证版本号格式
+    if ! [[ "$remote_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log "版本检查失败：无效的远程版本号"
+        return 1
+    fi
+
+    # 比较版本
+    if version_compare "$CURRENT_VERSION" "$remote_version"; then
+        echo -e "${GREEN}✓ 当前已是最新版本 v${CURRENT_VERSION}${NC}"
+        return 1
     else
-        echo -e "\033[0;31m未启用\033[0m" # 红色
+        echo -e "${YELLOW}▶ 发现新版本 v${remote_version}${NC}"
+        return 0
     fi
 }
 
-# 显示菜单的函数
-show_menu() {
-    clear
-    echo "            欢迎使用realm一键转发脚本"
-    echo " ———————————— realm版本v2.7.0 ————————————"
-    echo "     修改by：Azimi    修改日期：2024/12/1"
-    echo "     修改内容：1.修改查看转发规则内容更加清晰"
-    echo "               2.添加/删除规则后自动重启服务"
-    echo "     更新脚本请先删除脚本 rm realm.sh"
-    echo "     如果启动失败请检查 /root/realm/config.toml下有无多余配置或者卸载后重新配置"
-    echo "     仓库：https://github.com/qqrrooty/EZrealm"
-    echo " "
-    echo "——————————————————"
-    echo " 1. 安装 realm"
-    echo "——————————————————"
-    echo " 2. 添加 realm 转发规则"
-    echo " 3. 查看 realm 转发规则"
-    echo " 4. 删除 realm 转发规则"
-    echo "——————————————————"
-    echo " 5. 启动 realm 服务"
-    echo " 6. 停止 realm 服务"
-    echo " 7. 重启 realm 服务"
-    echo "——————————————————"
-    echo " 8. 卸载 realm"
-    echo "——————————————————"
-    echo " 9. 定时重启任务"
-    echo "——————————————————"
-    echo " 0. 退出脚本"
-    echo "——————————————————"
-    echo " "
-    echo -e "realm 状态：${realm_status_color}${realm_status}\033[0m"
-    echo -n "realm 转发状态："
-    check_realm_service_status
+version_compare() {
+    [[ "$1" == "$2" ]] && return 0
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do ver1[i]=0; done
+    for ((i=0; i<${#ver1[@]}; i++)); do
+        [[ -z ${ver2[i]} ]] && ver2[i]=0
+        ((10#${ver1[i]} > 10#${ver2[i]})) && return 1
+    done
+    return 0
 }
 
-# 部署环境的函数
+perform_update() {
+    local tmp_file=$(mktemp /tmp/realm_update.XXXXXX)
+    
+    echo -e "${YELLOW}▶ 正在下载新版本...${NC}"
+    if ! curl -sL $UPDATE_URL -o "$tmp_file"; then
+        log "更新失败：下载错误"
+        echo -e "${RED}✖ 下载失败，请检查网络连接${NC}"
+        rm -f "$tmp_file"
+        return 1
+    fi
+
+    # 基础验证
+    if ! head -n1 "$tmp_file" | grep -q '^#!/bin/bash' || ! grep -q "CURRENT_VERSION" "$tmp_file"; then
+        log "更新失败：文件校验错误"
+        echo -e "${RED}✖ 文件校验失败，可能下载损坏${NC}"
+        rm -f "$tmp_file"
+        return 1
+    fi
+
+    # 获取新版本号
+    new_version=$(grep -m1 "CURRENT_VERSION=" "$tmp_file" | cut -d'"' -f2)
+    
+    # 替换文件
+    chmod +x "$tmp_file"
+    if mv "$tmp_file" "$0"; then
+        log "成功更新到 v$new_version"
+        echo -e "\n${GREEN}✔ 更新成功！重启脚本...${NC}"
+        exec "$0" "$@"
+    else
+        log "更新失败：文件替换错误"
+        echo -e "${RED}✖ 文件替换失败，请检查权限${NC}"
+        rm -f "$tmp_file"
+        return 1
+    fi
+}
+
+# ========================================
+# 核心功能模块
+# ========================================
 deploy_realm() {
-    mkdir -p /root/realm
-    cd /root/realm
-    wget -O realm.tar.gz https://github.com/zhboner/realm/releases/download/v2.7.0/realm-x86_64-unknown-linux-gnu.tar.gz
-    tar -xvf realm.tar.gz
+    log "开始安装Realm"
+    echo -e "${BLUE}▶ 正在安装Realm...${NC}"
+    
+    mkdir -p "$REALM_DIR"
+    cd "$REALM_DIR" || exit 1
+
+    # 获取最新版本号
+    echo -e "${BLUE}▶ 正在检测最新版本...${NC}"
+    LATEST_VERSION=$(curl -sL https://github.com/zhboner/realm/releases | grep -oE '/zhboner/realm/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | cut -d'/' -f6 | tr -d 'v')
+    
+    # 版本号验证
+    if [[ -z "$LATEST_VERSION" || ! "$LATEST_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log "版本检测失败，使用备用版本2.7.0"
+        LATEST_VERSION="2.7.0"
+        echo -e "${YELLOW}⚠ 无法获取最新版本，使用备用版本 v${LATEST_VERSION}${NC}"
+    else
+        echo -e "${GREEN}✓ 检测到最新版本 v${LATEST_VERSION}${NC}"
+    fi
+
+    # 下载最新版本
+    DOWNLOAD_URL="https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-x86_64-unknown-linux-gnu.tar.gz"
+    echo -e "${BLUE}▶ 正在下载 Realm v${LATEST_VERSION}...${NC}"
+    if ! wget --show-progress -qO realm.tar.gz "$DOWNLOAD_URL"; then
+        log "安装失败：下载错误"
+        echo -e "${RED}✖ 文件下载失败，请检查：${NC}"
+        echo -e "1. 网络连接状态"
+        echo -e "2. GitHub访问权限"
+        echo -e "3. 手动验证下载地址: $DOWNLOAD_URL"
+        return 1
+    fi
+
+    # 解压安装
+    tar -xzf realm.tar.gz
     chmod +x realm
+    rm realm.tar.gz
+
+    # 初始化配置文件
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "[network]\nno_tcp = false\nuse_udp = true" > "$CONFIG_FILE"
+    fi
+
     # 创建服务文件
-    echo "[Unit]
-Description=realm
-After=network-online.target
-Wants=network-online.target systemd-networkd-wait-online.service
+    echo -e "${BLUE}▶ 创建系统服务...${NC}"
+    cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=Realm Proxy Service
+After=network.target
 
 [Service]
 Type=simple
+ExecStart=$REALM_DIR/realm -c $CONFIG_FILE
+Restart=always
 User=root
-Restart=on-failure
-RestartSec=5s
-DynamicUser=true
-WorkingDirectory=/root/realm
-ExecStart=/root/realm/realm -c /root/realm/config.toml
 
 [Install]
-WantedBy=multi-user.target" > /etc/systemd/system/realm.service
+WantedBy=multi-user.target
+EOF
+
     systemctl daemon-reload
-
-    # 服务启动后，检查config.toml是否存在，如果不存在则创建
-    if [ ! -f /root/realm/config.toml ]; then
-        touch /root/realm/config.toml
-    fi
-
-# 检查 config.toml 中是否已经包含 [network] 配置块
-    network_count=$(grep -c '^\[network\]' /root/realm/config.toml)
-
-    if [ "$network_count" -eq 0 ]; then
-    # 如果没有找到 [network]，将其添加到文件顶部
-    echo "[network]
-no_tcp = false
-use_udp = true
-" | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
-    echo "[network] 配置已添加到 config.toml 文件。"
-    
-    elif [ "$network_count" -gt 1 ]; then
-    # 如果找到多个 [network]，删除多余的配置块，只保留第一个
-    sed -i '0,/^\[\[endpoints\]\]/{//!d}' /root/realm/config.toml
-    echo "[network]
-no_tcp = false
-use_udp = true
-" | cat - /root/realm/config.toml > temp && mv temp /root/realm/config.toml
-    echo "多余的 [network] 配置已删除。"
-    else
-    echo "[network] 配置已存在，跳过添加。"
-    fi
-
-    # 更新realm状态变量
-    realm_status="已安装"
-    realm_status_color="\033[0;32m" # 绿色
-    echo "部署完成。"
+    log "安装成功"
+    echo -e "${GREEN}✔ 安装完成！${NC}"
 }
 
-# 卸载realm
-uninstall_realm() {
-    systemctl stop realm
-    systemctl disable realm
-    rm -rf /etc/systemd/system/realm.service
-    systemctl daemon-reload
-    rm -rf /root/realm
-    rm -rf "$(pwd)"/realm.sh
-    sed -i '/realm/d' /etc/crontab
-    echo "realm已被卸载。"
-    # 更新realm状态变量
-    realm_status="未安装"
-    realm_status_color="\033[0;31m" # 红色
-}
-
-# 删除转发规则的函数
-delete_forward() {
-  echo -e "                   当前 Realm 转发规则                   "
-  echo -e "--------------------------------------------------------"
-  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "--------------------------------------------------------"
-    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
-    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
-    
-    if [ ${#lines[@]} -eq 0 ]; then
-        echo "没有发现任何转发规则。"
-        return
-    fi
+show_rules() {
+    log "查看转发规则"
+    echo -e "\n${YELLOW}当前转发规则：${NC}"
+    echo -e "┌──────┬───────────────┬───────────────────────┬────────────┐"
+    echo -e "│ 序号 │ 本地端口      │ 目标地址              │ 备注       │"
+    echo -e "├──────┼───────────────┼───────────────────────┼────────────┤"
 
     local index=1
-    for line in "${lines[@]}"; do
-        local line_number=$(echo $line | cut -d ':' -f 1)
-        local remark_line=$((line_number + 1))
-        local listen_line=$((line_number + 2))
-        local remote_line=$((line_number + 3))
-
-        local remark=$(sed -n "${remark_line}p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
-
-        local listen_ip_port=$listen_info
-        local remote_ip_port=$remote_info
-
-    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "--------------------------------------------------------"
-        let index+=1
-    done
-
-
-    echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
-    read -p "选择: " choice
-    if [ -z "$choice" ]; then
-        echo "返回主菜单。"
-        return
-    fi
-
-    if ! [[ $choice =~ ^[0-9]+$ ]]; then
-        echo "无效输入，请输入数字。"
-        return
-    fi
-
-    if [ $choice -lt 1 ] || [ $choice -gt ${#lines[@]} ]; then
-        echo "选择超出范围，请输入有效序号。"
-        return
-  fi
-
-  local chosen_line=${lines[$((choice-1))]}
-  local start_line=$(echo $chosen_line | cut -d ':' -f 1)
-
-  # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
-  local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
-
-  if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
-    # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
-    end_line=$(wc -l < /root/realm/config.toml)
-  else
-    # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
-    end_line=$((next_endpoints_line - 1))
-  fi
-
-  # 使用 sed 删除指定行范围的内容
-  sed -i "${start_line},${end_line}d" /root/realm/config.toml
-
-  # 检查并删除可能多余的空行
-  sed -i '/^\s*$/d' /root/realm/config.toml
-
-  echo "转发规则及其备注已删除。"
-
-  # 重启服务
-  sudo systemctl restart realm.service
-}
-
-# 查看转发规则
-show_all_conf() {
-  echo -e "                   当前 Realm 转发规则                   "
-  echo -e "--------------------------------------------------------"
-  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "--------------------------------------------------------"
-    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 listen 的行，表示转发规则的起始行
-    local lines=($(grep -n 'listen =' /root/realm/config.toml))
-    
-    if [ ${#lines[@]} -eq 0 ]; then
-  echo -e "没有发现任何转发规则。"
-        return
-    fi
-
-    local index=1
-    for line in "${lines[@]}"; do
-        local line_number=$(echo $line | cut -d ':' -f 1)
-        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        
-        local listen_ip_port=$listen_info
-        local remote_ip_port=$remote_info
-        
-    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "--------------------------------------------------------"
-        let index+=1
-    done
-}
-
-# 添加转发规则
-add_forward() {
-    while true; do
-        read -p "请输入本地监听端口: " local_port
-        read -p "请输入需要转发的IP: " ip
-        read -p "请输入需要转发端口: " port
-        read -p "请输入备注(非中文): " remark
-        # 追加到config.toml文件
-        echo "[[endpoints]]
-# 备注: $remark
-listen = \"[::]:$local_port\"
-remote = \"$ip:$port\"" >> /root/realm/config.toml
-        
-        read -p "是否继续添加(Y/N)? " answer
-        if [[ $answer != "Y" && $answer != "y" ]]; then
-            break
+    while IFS= read -r line; do
+        if [[ "$line" == "[["* ]]; then
+            local remark="" listen="" remote=""
+            while IFS= read -r config_line && [[ "$config_line" != "[["* ]]; do
+                case $config_line in
+                    "# 备注:"*) remark="${config_line#*: }" ;;
+                    "listen ="*) listen="${config_line#*\"}" | tr -d '"' ;;
+                    "remote ="*) remote="${config_line#*\"}" | tr -d '"' ;;
+                esac
+            done
+            printf "│ %-4d │ %-13s │ %-21s │ %-10s │\n" "$index" "${listen##*:}" "$remote" "$remark"
+            ((index++))
         fi
+    done < "$CONFIG_FILE"
+
+    echo -e "└──────┴───────────────┴───────────────────────┴────────────┘"
+}
+
+add_rule() {
+    log "添加转发规则"
+    while : ; do
+        echo -e "\n${BLUE}▶ 添加新规则（输入q退出）${NC}"
+        read -rp "本地监听端口: " local_port
+        [ "$local_port" = "q" ] && break
+        
+        read -rp "目标服务器IP: " remote_ip
+        read -rp "目标端口: " remote_port
+        read -rp "规则备注: " remark
+
+        # 验证输入
+        if ! [[ "$local_port" =~ ^[0-9]+$ ]] || ! [[ "$remote_port" =~ ^[0-9]+$ ]]; then
+            echo -e "${RED}✖ 端口必须为数字！${NC}"
+            continue
+        fi
+
+        # 追加配置
+        cat >> "$CONFIG_FILE" <<EOF
+
+[[endpoints]]
+# 备注: $remark
+listen = "0.0.0.0:$local_port"
+remote = "$remote_ip:$remote_port"
+EOF
+
+        systemctl restart realm
+        log "添加规则：$local_port → $remote_ip:$remote_port ($remark)"
+        echo -e "${GREEN}✔ 规则已添加！${NC}"
+        
+        read -rp "继续添加？(y/n): " cont
+        [[ "$cont" != "y" ]] && break
     done
-    
-    sudo systemctl restart realm.service
 }
 
-# 启动服务
-start_service() {
-    sudo systemctl unmask realm.service
-    sudo systemctl daemon-reload
-    sudo systemctl restart realm.service
-    sudo systemctl enable realm.service
-    echo "realm服务已启动并设置为开机自启。"
-}
+delete_rule() {
+    log "删除转发规则"
+    show_rules
+    local total=$(grep -c "^\[\[endpoints\]\]" "$CONFIG_FILE")
+    [ "$total" -eq 0 ] && return
 
-# 停止服务
-stop_service() {
-    systemctl stop realm
-    echo "realm服务已停止。"
-}
-
-# 重启服务
-restart_service() {
-    sudo systemctl stop realm
-    sudo systemctl unmask realm.service
-    sudo systemctl daemon-reload
-    sudo systemctl restart realm.service
-    sudo systemctl enable realm.service
-    echo "realm服务已重启。"
-}
-
-# 定时任务
-cron_restart() {
-  echo -e "------------------------------------------------------------------"
-  echo -e "realm定时重启任务: "
-  echo -e "-----------------------------------"
-  echo -e "[1] 配置realm定时重启任务"
-  echo -e "[2] 删除realm定时重启任务"
-  echo -e "-----------------------------------"
-  read -p "请选择: " numcron
-  if [ "$numcron" == "1" ]; then
-    echo -e "------------------------------------------------------------------"
-    echo -e "realm定时重启任务类型: "
-    echo -e "-----------------------------------"
-    echo -e "[1] 每？小时重启"
-    echo -e "[2] 每日？点重启"
-    echo -e "-----------------------------------"
-    read -p "请选择: " numcrontype
-    if [ "$numcrontype" == "1" ]; then
-      echo -e "-----------------------------------"
-      read -p "每？小时重启: " cronhr
-      echo "0 */$cronhr * * * root /usr/bin/systemctl restart realm" >>/etc/crontab
-      echo -e "定时重启设置成功！"
-    elif [ "$numcrontype" == "2" ]; then
-      echo -e "-----------------------------------"
-      read -p "每日？点重启: " cronhr
-      echo "0 $cronhr * * * root /usr/bin/systemctl restart realm" >>/etc/crontab
-      echo -e "定时重启设置成功！"
+    read -rp "输入要删除的规则序号 (1-$total): " num
+    if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= total )); then
+        awk -v del_num="$num" '
+            /^\[\[endpoints\]\]/ { count++ }
+            count != del_num { print }
+            count == del_num { skip=1 }
+            skip && /^$/ { skip=0 }
+        ' "$CONFIG_FILE" > tmp_config && mv tmp_config "$CONFIG_FILE"
+        
+        systemctl restart realm
+        log "删除规则：序号 $num"
+        echo -e "${GREEN}✔ 规则已删除！${NC}"
     else
-      echo "输入错误，请重试"
-      exit
+        echo -e "${RED}✖ 无效的输入！${NC}"
     fi
-  elif [ "$numcron" == "2" ]; then
-    sed -i "/realm/d" /etc/crontab
-    echo -e "定时重启任务删除完成！"
-  else
-    echo "输入错误，请重试"
-    exit
-  fi
 }
 
-# 主循环
-while true; do
-    show_menu
-    read -p "请选择一个选项[0-9]: " choice
-    # 去掉输入中的空格
-    choice=$(echo $choice | tr -d '[:space:]')
+service_control() {
+    case $1 in
+        start)
+            systemctl start realm
+            log "启动服务"
+            echo -e "${GREEN}✔ 服务已启动${NC}"
+            ;;
+        stop)
+            systemctl stop realm
+            log "停止服务"
+            echo -e "${YELLOW}⚠ 服务已停止${NC}"
+            ;;
+        restart)
+            systemctl restart realm
+            log "重启服务"
+            echo -e "${GREEN}✔ 服务已重启${NC}"
+            ;;
+        status)
+            if systemctl is-active --quiet realm; then
+                echo -e "${GREEN}● 服务运行中${NC}"
+            else
+                echo -e "${RED}● 服务未运行${NC}"
+            fi
+            ;;
+    esac
+}
 
-    # 检查输入是否为数字，并在有效范围内
-    if ! [[ "$choice" =~ ^[0-9]$ ]]; then
-        echo "无效选项: $choice"
-        continue
-    fi
+manage_cron() {
+    echo -e "\n${YELLOW}定时任务管理：${NC}"
+    echo "1. 添加每日重启任务"
+    echo "2. 删除所有任务"
+    echo "3. 查看当前任务"
+    read -rp "请选择: " choice
 
     case $choice in
         1)
-            deploy_realm
+            read -rp "输入每日重启时间 (0-23): " hour
+            if [[ "$hour" =~ ^[0-9]+$ ]] && (( hour >= 0 && hour <= 23 )); then
+                (crontab -l 2>/dev/null; echo "0 $hour * * * systemctl restart realm") | crontab -
+                log "添加定时任务：每日 $hour 时重启"
+                echo -e "${GREEN}✔ 定时任务已添加！${NC}"
+            else
+                echo -e "${RED}✖ 无效时间！${NC}"
+            fi
             ;;
         2)
-            add_forward
+            crontab -l | grep -v "realm" | crontab -
+            log "清除定时任务"
+            echo -e "${YELLOW}✔ 定时任务已清除！${NC}"
             ;;
         3)
-            show_all_conf
-            ;;
-        4)
-            delete_forward
-            ;;
-        5)
-            start_service
-            ;;
-        6)
-            stop_service
-            ;;
-        7)
-            restart_service
-            ;;
-        8)
-            uninstall_realm
-            ;;
-        9)
-            cron_restart
-            ;;  
-        0)
-            echo "退出脚本。"  # 显示退出消息
-            exit 0            # 退出脚本
+            echo -e "\n${BLUE}当前定时任务：${NC}"
+            crontab -l | grep --color=auto "realm"
             ;;
         *)
-            echo "无效选项: $choice"
+            echo -e "${RED}✖ 无效选择！${NC}"
             ;;
     esac
-    read -p "按任意键继续..." key
-done
+}
+
+uninstall() {
+    log "开始卸载"
+    echo -e "${YELLOW}▶ 正在卸载...${NC}"
+    
+    systemctl stop realm
+    systemctl disable realm
+    rm -rf "$REALM_DIR"
+    rm -f "$SERVICE_FILE"
+    crontab -l | grep -v "realm" | crontab -
+    systemctl daemon-reload
+    
+    log "卸载完成"
+    echo -e "${GREEN}✔ 已完全卸载！${NC}"
+}
+
+# ========================================
+# 主界面
+# ========================================
+main_menu() {
+    init_check
+    check_update && perform_update "$@"
+
+    while true; do
+        clear
+        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂"
+        echo -e "      Realm 高级管理脚本 v$CURRENT_VERSION"
+        echo -e "▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
+        echo -e "${BLUE}服务状态：$(service_control status)${NC}"
+        echo -e "${YELLOW}-----------------------------------------${NC}"
+        echo "1. 安装/更新 Realm"
+        echo "2. 添加转发规则"
+        echo "3. 查看转发规则"
+        echo "4. 删除转发规则"
+        echo "5. 服务管理（启动/停止/重启）"
+        echo "6. 定时任务管理"
+        echo "7. 查看日志"
+        echo "8. 完全卸载"
+        echo "0. 退出脚本"
+        echo -e "${YELLOW}-----------------------------------------${NC}"
+
+        read -rp "请输入选项: " choice
+        case $choice in
+            1) deploy_realm ;;
+            2) add_rule ;;
+            3) show_rules ;;
+            4) delete_rule ;;
+            5) 
+                echo -e "\n${BLUE}服务管理：${NC}"
+                echo "1. 启动服务"
+                echo "2. 停止服务"
+                echo "3. 重启服务"
+                read -rp "请选择: " sub_choice
+                case $sub_choice in
+                    1) service_control start ;;
+                    2) service_control stop ;;
+                    3) service_control restart ;;
+                    *) echo -e "${RED}无效选择！${NC}" ;;
+                esac
+                ;;
+            6) manage_cron ;;
+            7) 
+                echo -e "\n${BLUE}最近日志：${NC}"
+                tail -n 10 "$LOG_FILE" 
+                ;;
+            8) 
+                read -rp "确认完全卸载？(y/n): " confirm
+                [[ "$confirm" == "y" ]] && uninstall
+                ;;
+            0) exit 0 ;;
+            *) echo -e "${RED}无效选项！${NC}" ;;
+        esac
+        read -rp "按回车键继续..."
+    done
+}
+
+# ========================================
+# 脚本入口
+# ========================================
+main_menu "$@"
