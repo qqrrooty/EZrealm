@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.0"
+CURRENT_VERSION="1.0.1"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -191,9 +191,9 @@ EOF
 # 查看转发规则
 show_rules() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${YELLOW}--------------------------------------------------------${NC}"
+  echo -e "${BLUE}--------------------------------------------------------${NC}"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "${YELLOW}--------------------------------------------------------${NC}"
+  echo -e "${BLUE}--------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 listen 的行，表示转发规则的起始行
     local lines=($(grep -n 'listen =' /root/realm/config.toml))
@@ -214,7 +214,7 @@ show_rules() {
         local remote_ip_port=$remote_info
         
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "${YELLOW}--------------------------------------------------------${NC}"
+    echo -e "${BLUE}--------------------------------------------------------${NC}"
         let index+=1
     done
 }
@@ -302,9 +302,9 @@ EOF
 
 delete_rule() {
   echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${YELLOW}--------------------------------------------------------${NC}"
+  echo -e "${BLUE}--------------------------------------------------------${NC}"
   printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
-  echo -e "${YELLOW}--------------------------------------------------------${NC}"
+  echo -e "${BLUE}--------------------------------------------------------${NC}"
     local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
     # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
     local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
@@ -329,7 +329,7 @@ delete_rule() {
         local remote_ip_port=$remote_info
 
     printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "${YELLOW}--------------------------------------------------------${NC}"
+    echo -e "${BLUE}--------------------------------------------------------${NC}"
         let index+=1
     done
 
@@ -472,7 +472,7 @@ main_menu() {
 
     while true; do
         clear
-        echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂"
+        echo -e "${BLUE}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂"
         echo -e "  "
         echo -e "      Realm 高级管理脚本 v$CURRENT_VERSION"
         echo -e "     修改by：Azimi    修改日期：2025/1/29"
