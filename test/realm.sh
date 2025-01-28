@@ -534,12 +534,12 @@ main_menu() {
                 if [[ "$confirm" == "y" ]]; then
                     uninstall
                     read -rp "按回车键继续..."
-                    exit 0
                     clear
+                    exit 0
                 fi
                 ;;
-            0) exit 0 
-               clear
+            0) clear
+               exit 0 
             ;;
             *) echo -e "${RED}无效选项！${NC}" ;;
         esac
