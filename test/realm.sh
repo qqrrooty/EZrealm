@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.7"
+CURRENT_VERSION="1.0.8"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/test/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
@@ -188,96 +188,35 @@ EOF
     echo -e "${GREEN}✔ 安装完成！${NC}"
 }
 
-show_rules() {
-    log "查看转发规则"
+# 查看转发规则
+show_all_conf() {
+  echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
+  echo -e "--------------------------------------------------------"
+  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  echo -e "--------------------------------------------------------"
+    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
+    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
+    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
     
-    # 初始化列宽为0
-    local max_listen=0 max_remote=0 max_remark=0 rule_count=0
+    if [ ${#lines[@]} -eq 0 ]; then
+  echo -e "没有发现任何转发规则。"
+        return
+    fi
 
-    # 第一遍扫描计算列宽
-    while IFS= read -r line; do
-        if [[ "$line" == "[["* ]]; then
-            local remark="" listen="" remote=""
-            while IFS= read -r config_line && [[ "$config_line" != "[["* ]]; do
-                case $config_line in
-                    *"# 备注:"*) remark="${config_line#*# 备注: }" ;;
-                    "listen ="*) 
-                        listen="${config_line#*\"}"
-                        listen="${listen%\"*}"
-                        # 计算实际长度（去除颜色代码）
-                        raw_len=$(echo -e "$listen" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g' | wc -m)
-                        (( raw_len > max_listen )) && max_listen=$raw_len
-                        ;;
-                    "remote ="*) 
-                        remote="${config_line#*\"}"
-                        remote="${remote%\"*}"
-                        raw_len=$(echo -e "$remote" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g' | wc -m)
-                        (( raw_len > max_remote )) && max_remote=$raw_len
-                        ;;
-                esac
-            done
-            
-            # 计算备注列宽
-            raw_remark=$(echo -e "$remark" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
-            (( ${#raw_remark} > max_remark )) && max_remark=${#raw_remark}
-            ((rule_count++))
-        fi
-    done < <(cat "$CONFIG_FILE" && echo "[[endpoints]]")
-
-    # 设置最小列宽
-    (( max_listen < 10 )) && max_listen=10
-    (( max_remote < 10 )) && max_remote=10
-    (( max_remark < 6 )) && max_remark=6
-
-    # 动态生成表格
-    sep_line=$(printf "┌─%*s─┬─%*s─┬─%*s─┬─%*s─┐" \
-        4 "" $((max_listen+2)) "" $((max_remote+2)) "" $((max_remark+2)) "" |
-        sed 's/ /─/g')
-
-    echo -e "\n${YELLOW}当前转发规则（共 ${rule_count} 条）：${NC}"
-    echo -e "$sep_line"
-    printf "│ %-4s │ %-*s │ %-*s │ %-*s │\n" \
-        "序号" \
-        $max_listen "本地地址" \
-        $max_remote "目标地址" \
-        $max_remark "备注"
-    echo -e "$sep_line" | sed 's/┬/┼/g'
-
-    # 第二遍扫描输出带颜色的内容
-    awk -v max_listen="$max_listen" -v max_remote="$max_remote" -v max_remark="$max_remark" '
-        BEGIN { 
-            RS="\\[\\[endpoints\\]\\]"
-            FS="\n"
-            idx=1
-        }
-        NR > 1 {
-            listen=""; remote=""; remark=""
-            for (i=1; i<=NF; i++) {
-                if ($i ~ /^# 备注:/) {
-                    split($i, arr, ": ");
-                    remark = arr[2]
-                }
-                if ($i ~ /listen[[:space:]]*=/) {
-                    split($i, arr, "\"");
-                    listen = arr[2]
-                }
-                if ($i ~ /remote[[:space:]]*=/) {
-                    split($i, arr, "\"");
-                    remote = arr[2]
-                }
-            }
-            if (listen != "" && remote != "") {
-                # 添加颜色代码并保持对齐
-                printf "│ \033[33m%-4d\033[0m │ \033[36m%-*s\033[0m │ \033[32m%-*s\033[0m │ %-*s │\n", 
-                    idx++,
-                    max_listen, listen, 
-                    max_remote, remote, 
-                    max_remark, remark
-            }
-        }
-    ' "$CONFIG_FILE"
-
-    echo -e "$sep_line" | sed 's/┬/┴/g'
+    local index=1
+    for line in "${lines[@]}"; do
+        local line_number=$(echo $line | cut -d ':' -f 1)
+        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
+        
+        local listen_ip_port=$listen_info
+        local remote_ip_port=$remote_info
+        
+    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    echo -e "--------------------------------------------------------"
+        let index+=1
+    done
 }
 
 # 添加转发规则
@@ -361,61 +300,81 @@ EOF
     done
 }
 
-delete_rule() {
-    log "删除转发规则"
+delete_forward() {
+  echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
+  echo -e "--------------------------------------------------------"
+  printf "%-5s| %-15s| %-35s| %-20s\n" "序号" "本地地址:端口 " "    目的地地址:端口 " "备注"
+  echo -e "--------------------------------------------------------"
+    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
+    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
+    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
     
-    # 获取有效规则总数（排除注释块）
-    local total=$(awk '/^\[\[endpoints\]\]/ && !/^[[:space:]]*#/ { count++ } END { print count }' "$CONFIG_FILE")
-    
-    if [ "$total" -eq 0 ]; then
-        echo -e "${RED}✖ 没有可删除的规则${NC}"
+    if [ ${#lines[@]} -eq 0 ]; then
+        echo "没有发现任何转发规则。"
         return
     fi
 
-    show_rules  # 显示带序号的规则列表
-    
-    read -rp "输入要删除的规则序号 (1-$total): " num
-    if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= total )); then
-        # 使用改进的 awk 处理逻辑
-        awk -v del_num="$num" '
-            BEGIN { 
-                RS = "\n\\[\\[endpoints\\]\\][[:space:]]*\n";
-                ORS = "";
-                rule_index = 0;
-                output = "";
-            }
-            {
-                # 跳过初始空记录
-                if (NR == 1 && $0 == "") next
-                
-                # 记录分隔符后的内容处理
-                if (RT == "[[endpoints]]\n") {
-                    # 处理前一个记录
-                    if (rule_index > 0) {
-                        if (rule_index != del_num) {
-                            output = output "[[endpoints]]\n" $0
-                        }
-                        rule_index++
-                    } else {
-                        # 第一个记录前的内容
-                        output = $0
-                    }
-                } else {
-                    # 非规则块内容直接保留
-                    output = output $0 RT
-                }
-            }
-            END {
-                print output
-            }
-        ' "$CONFIG_FILE" > tmp_config && mv tmp_config "$CONFIG_FILE"
-        
-        systemctl restart realm
-        log "删除规则：序号 $num"
-        echo -e "${GREEN}✔ 规则已删除！${NC}"
-    else
-        echo -e "${RED}✖ 无效的输入！${NC}"
+    local index=1
+    for line in "${lines[@]}"; do
+        local line_number=$(echo $line | cut -d ':' -f 1)
+        local remark_line=$((line_number + 1))
+        local listen_line=$((line_number + 2))
+        local remote_line=$((line_number + 3))
+
+        local remark=$(sed -n "${remark_line}p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
+        local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+
+        local listen_ip_port=$listen_info
+        local remote_ip_port=$remote_info
+
+    printf "%-4s| %-14s| %-28s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+    echo -e "--------------------------------------------------------"
+        let index+=1
+    done
+
+
+    echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
+    read -p "选择: " choice
+    if [ -z "$choice" ]; then
+        echo "返回主菜单。"
+        return
     fi
+
+    if ! [[ $choice =~ ^[0-9]+$ ]]; then
+        echo "无效输入，请输入数字。"
+        return
+    fi
+
+    if [ $choice -lt 1 ] || [ $choice -gt ${#lines[@]} ]; then
+        echo "选择超出范围，请输入有效序号。"
+        return
+  fi
+
+  local chosen_line=${lines[$((choice-1))]}
+  local start_line=$(echo $chosen_line | cut -d ':' -f 1)
+
+  # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
+  local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
+
+  if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
+    # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
+    end_line=$(wc -l < /root/realm/config.toml)
+  else
+    # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
+    end_line=$((next_endpoints_line - 1))
+  fi
+
+  # 使用 sed 删除指定行范围的内容
+  sed -i "${start_line},${end_line}d" /root/realm/config.toml
+
+  # 检查并删除可能多余的空行
+  sed -i '/^\s*$/d' /root/realm/config.toml
+
+  echo "转发规则及其备注已删除。"
+
+  # 重启服务
+  sudo systemctl restart realm.service
 }
 
 service_control() {
@@ -536,7 +495,7 @@ main_menu() {
         echo "8. 定时任务管理"
         echo "9. 查看日志"
         echo -e "${YELLOW}---------------------------${NC}"
-        echo "10. 完全卸载"
+        echo "10. ${YELLOW}完全卸载${NC}"
         echo -e "${YELLOW}---------------------------${NC}"
         echo "0. 退出脚本"
         echo -e "${YELLOW}---------------------------${NC}"
