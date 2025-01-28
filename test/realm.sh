@@ -317,24 +317,51 @@ EOF
 
 delete_rule() {
     log "删除转发规则"
+    
+    # 获取有效规则总数（排除注释中的[[endpoints]]）
+    local total=$(awk '
+        /^\[\[endpoints\]\]/ && !/^#/ { count++ } 
+        END { print count }
+    ' "$CONFIG_FILE")
+    
+    if [ "$total" -eq 0 ]; then
+        echo -e "${RED}✖ 没有可删除的规则${NC}"
+        return
+    fi
+
     show_rules  # 显示带序号的规则列表
     
-    local total=$(grep -c "^\[\[endpoints\]\]" "$CONFIG_FILE")
-    [ "$total" -eq 0 ] && return
-
     read -rp "输入要删除的规则序号 (1-$total): " num
     if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= total )); then
-        # 使用AWK精确删除指定序号的规则块
+        # 使用更严格的awk处理规则块
         awk -v del_num="$num" '
-            BEGIN { RS="\\[\\[endpoints\\]\\]"; ORS=""; block_count=0 }
+            BEGIN { 
+                RS="\n\\[\\[endpoints\\]\\]\n"; 
+                FS="\n"
+                ORS=""
+                rule_index=0
+            }
             {
-                if (block_count++ == 0) { 
-                    # 保留第一个非endpoints块的内容
-                    if ($0 !~ /^\[\[endpoints\]\]/) print 
+                # 处理第一个非规则块内容
+                if (NR == 1 && $0 !~ /^\[\[endpoints\]\]/) {
+                    print $0
+                    next
+                }
+                
+                # 跳过注释块
+                if ($0 ~ /^#/) { 
+                    print $0 RS
                     next 
                 }
-                if (block_count-1 != del_num) { 
-                    print "[[endpoints]]" $0 
+                
+                rule_index++
+                if (rule_index != del_num) {
+                    # 保留非删除规则的完整块
+                    if (rule_index == 1) {
+                        print "[[endpoints]]" $0
+                    } else {
+                        print RS "[[endpoints]]" $0
+                    }
                 }
             }
         ' "$CONFIG_FILE" > tmp_config && mv tmp_config "$CONFIG_FILE"
