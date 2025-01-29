@@ -3,7 +3,7 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.0.3"
+CURRENT_VERSION="1.1.0"
 UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh"
 VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
