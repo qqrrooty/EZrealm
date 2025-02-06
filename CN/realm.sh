@@ -4,8 +4,8 @@
 # 全局配置
 # ========================================
 CURRENT_VERSION="1.1.0"
-UPDATE_URL="https://mirror.ghproxy.com/https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh"
-VERSION_CHECK_URL="https://mirror.ghproxy.com/https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
+UPDATE_URL="https://ghfast.top/https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh"
+VERSION_CHECK_URL="https://ghfast.top/https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
 REALM_DIR="/root/realm"
 CONFIG_FILE="$REALM_DIR/config.toml"
 SERVICE_FILE="/etc/systemd/system/realm.service"
@@ -168,7 +168,7 @@ deploy_realm() {
 
     # 获取最新版本号
     echo -e "${BLUE}▶ 正在检测最新版本...${NC}"
-    LATEST_VERSION=$(curl -sL https://mirror.ghproxy.com/https://github.com/zhboner/realm/releases | grep -oE '/zhboner/realm/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | cut -d'/' -f6 | tr -d 'v')
+    LATEST_VERSION=$(curl -sL https://ghfast.top/https://github.com/zhboner/realm/releases | grep -oE '/zhboner/realm/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | cut -d'/' -f6 | tr -d 'v')
     
     # 版本号验证
     if [[ -z "$LATEST_VERSION" || ! "$LATEST_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -180,7 +180,7 @@ deploy_realm() {
     fi
 
     # 下载最新版本
-    DOWNLOAD_URL="https://mirror.ghproxy.com/https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-x86_64-unknown-linux-gnu.tar.gz"
+    DOWNLOAD_URL="https://ghfast.top/https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-x86_64-unknown-linux-gnu.tar.gz"
     echo -e "${BLUE}▶ 正在下载 Realm v${LATEST_VERSION}...${NC}"
     if ! wget --show-progress -qO realm.tar.gz "$DOWNLOAD_URL"; then
         log "安装失败：下载错误"
