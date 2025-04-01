@@ -537,10 +537,10 @@ main_menu() {
         echo -e "    (2)如果启动失败请检查 /root/realm/config.toml下有无多余配置或者卸载后重新配置"
         echo -e "    (3)该脚本只在debian系统下测试，未做其他系统适配，安装命令有别，可能无法启动。如若遇到问题，请自行解决"
         echo -e "    仓库：https://github.com/qqrrooty/EZrealm${NC}"
-        echo -e "    2025/4/1 更新：有人反馈该新版本添加规则过多后无法启动，如果遇到问题，可以尝试回退老版本
-        echo -e "        删除该脚本 rm realm.sh
-        echo -e "        运行 wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2024.sh && chmod +x realm.sh && ./realm.sh
-        echo -e "        或者 wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2025.sh && chmod +x realm.sh && ./realm.sh
+        echo -e "    2025/4/1 更新：有人反馈该新版本添加规则过多后无法启动，如果遇到问题，可以尝试回退老版本（大概率是备注问题）"
+        echo -e "        删除该脚本 rm realm.sh"
+        echo -e "        运行 wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2024.sh && chmod +x realm.sh && ./realm.sh"
+        echo -e "        或者 wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2025.sh && chmod +x realm.sh && ./realm.sh"
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "${YELLOW}服务状态：$(service_control status)${NC}"
