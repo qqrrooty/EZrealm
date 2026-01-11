@@ -3,13 +3,21 @@
 # ========================================
 # 全局配置
 # ========================================
-CURRENT_VERSION="1.1.1"
-UPDATE_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh"
-VERSION_CHECK_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt"
+CURRENT_VERSION="1.1.2"
 REALM_DIR="/root/realm"
 CONFIG_FILE="$REALM_DIR/config.toml"
 SERVICE_FILE="/etc/systemd/system/realm.service"
 LOG_FILE="/var/log/realm_manager.log"
+PROXY_CONFIG_FILE="$REALM_DIR/.proxy_config"
+
+# 代理变量（初始为空）
+PROXY=""
+
+# GitHub 相关 URL（将在代理配置后设置）
+BASE_RAW_URL="https://raw.githubusercontent.com/qqrrooty/EZrealm/main"
+BASE_GITHUB_URL="https://github.com"
+UPDATE_URL=""
+VERSION_CHECK_URL=""
 
 # ========================================
 # 颜色定义
@@ -18,7 +26,238 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
+
+# ========================================
+# URL 初始化函数
+# ========================================
+init_urls() {
+    UPDATE_URL="${PROXY}${BASE_RAW_URL}/realm.sh"
+    VERSION_CHECK_URL="${PROXY}${BASE_RAW_URL}/version.txt"
+}
+
+# ========================================
+# 中国 IP 检测
+# ========================================
+check_china_ip() {
+    local country=""
+
+    # 尝试多个 IP 检测服务
+    # 方法1: ip-api.com
+    country=$(curl -sL --connect-timeout 5 "http://ip-api.com/line?fields=countryCode" 2>/dev/null | head -n1)
+
+    # 方法2: ipinfo.io (备用)
+    if [[ -z "$country" ]]; then
+        country=$(curl -sL --connect-timeout 5 "https://ipinfo.io/country" 2>/dev/null | head -n1)
+    fi
+
+    # 方法3: ipapi.co (备用)
+    if [[ -z "$country" ]]; then
+        country=$(curl -sL --connect-timeout 5 "https://ipapi.co/country_code" 2>/dev/null | head -n1)
+    fi
+
+    # 判断是否为中国
+    if [[ "$country" == "CN" ]]; then
+        return 0  # 在中国
+    else
+        return 1  # 不在中国
+    fi
+}
+
+# ========================================
+# 代理配置
+# ========================================
+setup_proxy() {
+    echo -e "\n${BLUE}▶ 正在检测网络环境...${NC}"
+
+    # 确保目录存在
+    mkdir -p "$REALM_DIR"
+
+    # 检查是否已有保存的代理配置
+    if [[ -f "$PROXY_CONFIG_FILE" ]]; then
+        local saved_proxy
+        saved_proxy=$(cat "$PROXY_CONFIG_FILE" 2>/dev/null)
+        if [[ -n "$saved_proxy" ]]; then
+            echo -e "${GREEN}✓ 检测到已保存的代理配置${NC}"
+            echo -e "  代理地址: ${CYAN}${saved_proxy}${NC}"
+            read -rp "是否使用此代理？(Y/n): " use_saved
+            use_saved=${use_saved:-Y}
+            if [[ "$use_saved" =~ ^[Yy]$ ]]; then
+                PROXY="$saved_proxy"
+                init_urls
+                echo -e "${GREEN}✓ 已启用代理${NC}"
+                return 0
+            fi
+        fi
+    fi
+
+    # 检测是否在中国
+    if check_china_ip; then
+        echo -e "${YELLOW}⚠ 检测到您的 IP 位于中国大陆${NC}"
+        echo -e "${YELLOW}  由于网络原因，访问 GitHub 可能较慢或失败${NC}"
+        echo -e ""
+        read -rp "是否配置 GitHub 反代加速？(Y/n): " use_proxy
+        use_proxy=${use_proxy:-Y}
+
+        if [[ "$use_proxy" =~ ^[Yy]$ ]]; then
+            echo -e ""
+            echo -e "${BLUE}请输入反代地址（直接回车使用默认值）${NC}"
+            echo -e "${CYAN}默认反代: https://acc.banez.de/${NC}"
+            echo -e "${YELLOW}提示: 反代地址格式应为 https://xxx.xxx/ (末尾带斜杠)${NC}"
+            echo -e ""
+            read -rp "反代地址: " custom_proxy
+
+            # 使用默认值或用户输入
+            if [[ -z "$custom_proxy" ]]; then
+                PROXY="https://acc.banez.de/"
+            else
+                # 确保地址末尾有斜杠
+                if [[ ! "$custom_proxy" =~ /$ ]]; then
+                    custom_proxy="${custom_proxy}/"
+                fi
+                PROXY="$custom_proxy"
+            fi
+
+            echo -e ""
+            echo -e "${BLUE}▶ 正在测试代理连接...${NC}"
+
+            # 测试代理是否可用
+            if curl -sL --connect-timeout 10 "${PROXY}https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt" &>/dev/null; then
+                echo -e "${GREEN}✓ 代理连接成功！${NC}"
+
+                # 询问是否保存配置
+                read -rp "是否保存此代理配置？(Y/n): " save_config
+                save_config=${save_config:-Y}
+                if [[ "$save_config" =~ ^[Yy]$ ]]; then
+                    echo "$PROXY" > "$PROXY_CONFIG_FILE"
+                    echo -e "${GREEN}✓ 代理配置已保存${NC}"
+                fi
+            else
+                echo -e "${YELLOW}⚠ 代理连接测试失败，但仍将尝试使用${NC}"
+                echo -e "${YELLOW}  如果后续下载失败，请检查代理地址是否正确${NC}"
+            fi
+
+            init_urls
+            echo -e "${GREEN}✓ 已配置代理: ${PROXY}${NC}"
+        else
+            echo -e "${YELLOW}▶ 将直接连接 GitHub（可能较慢）${NC}"
+            init_urls
+        fi
+    else
+        echo -e "${GREEN}✓ 网络环境正常，无需配置代理${NC}"
+        init_urls
+    fi
+}
+
+# ========================================
+# 清除代理配置
+# ========================================
+clear_proxy_config() {
+    if [[ -f "$PROXY_CONFIG_FILE" ]]; then
+        rm -f "$PROXY_CONFIG_FILE"
+        PROXY=""
+        init_urls
+        echo -e "${GREEN}✓ 代理配置已清除${NC}"
+    else
+        echo -e "${YELLOW}▶ 没有保存的代理配置${NC}"
+    fi
+}
+
+# ========================================
+# 代理管理菜单
+# ========================================
+manage_proxy() {
+    echo -e "\n${YELLOW}代理设置管理：${NC}"
+    echo -e ""
+
+    # 显示当前状态
+    if [[ -n "$PROXY" ]]; then
+        echo -e "当前代理: ${GREEN}${PROXY}${NC}"
+    else
+        echo -e "当前代理: ${YELLOW}未配置${NC}"
+    fi
+
+    if [[ -f "$PROXY_CONFIG_FILE" ]]; then
+        echo -e "已保存配置: ${CYAN}$(cat "$PROXY_CONFIG_FILE")${NC}"
+    fi
+
+    echo -e ""
+    echo "1. 重新配置代理"
+    echo "2. 手动输入代理地址"
+    echo "3. 清除代理配置"
+    echo "4. 测试当前代理"
+    echo "0. 返回主菜单"
+    echo -e ""
+    read -rp "请选择: " choice
+
+    case $choice in
+        1)
+            # 强制重新检测并配置
+            PROXY=""
+            rm -f "$PROXY_CONFIG_FILE" 2>/dev/null
+            setup_proxy
+            ;;
+        2)
+            echo -e ""
+            echo -e "${BLUE}请输入反代地址${NC}"
+            echo -e "${YELLOW}提示: 反代地址格式应为 https://xxx.xxx/ (末尾带斜杠)${NC}"
+            echo -e "${CYAN}示例: https://acc.banez.de/${NC}"
+            echo -e ""
+            read -rp "反代地址: " custom_proxy
+
+            if [[ -z "$custom_proxy" ]]; then
+                echo -e "${RED}✖ 未输入地址${NC}"
+                return
+            fi
+
+            # 确保地址末尾有斜杠
+            if [[ ! "$custom_proxy" =~ /$ ]]; then
+                custom_proxy="${custom_proxy}/"
+            fi
+
+            PROXY="$custom_proxy"
+            init_urls
+
+            # 测试代理
+            echo -e "${BLUE}▶ 正在测试代理连接...${NC}"
+            if curl -sL --connect-timeout 10 "${PROXY}https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt" &>/dev/null; then
+                echo -e "${GREEN}✓ 代理连接成功！${NC}"
+                read -rp "是否保存此代理配置？(Y/n): " save_config
+                save_config=${save_config:-Y}
+                if [[ "$save_config" =~ ^[Yy]$ ]]; then
+                    echo "$PROXY" > "$PROXY_CONFIG_FILE"
+                    echo -e "${GREEN}✓ 代理配置已保存${NC}"
+                fi
+            else
+                echo -e "${YELLOW}⚠ 代理连接测试失败，但已设置${NC}"
+            fi
+            ;;
+        3)
+            clear_proxy_config
+            ;;
+        4)
+            if [[ -z "$PROXY" ]]; then
+                echo -e "${YELLOW}▶ 当前未配置代理，测试直连...${NC}"
+                if curl -sL --connect-timeout 10 "https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt" &>/dev/null; then
+                    echo -e "${GREEN}✓ 直连 GitHub 成功${NC}"
+                else
+                    echo -e "${RED}✖ 直连 GitHub 失败，建议配置代理${NC}"
+                fi
+            else
+                echo -e "${BLUE}▶ 测试代理: ${PROXY}${NC}"
+                if curl -sL --connect-timeout 10 "${PROXY}https://raw.githubusercontent.com/qqrrooty/EZrealm/main/version.txt" &>/dev/null; then
+                    echo -e "${GREEN}✓ 代理连接成功${NC}"
+                else
+                    echo -e "${RED}✖ 代理连接失败${NC}"
+                fi
+            fi
+            ;;
+        0|*)
+            return
+            ;;
+    esac
+}
 
 # ========================================
 # 初始化检查
@@ -168,8 +407,8 @@ deploy_realm() {
 
     # 获取最新版本号
     echo -e "${BLUE}▶ 正在检测最新版本...${NC}"
-    LATEST_VERSION=$(curl -sL https://github.com/zhboner/realm/releases | grep -oE '/zhboner/realm/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | cut -d'/' -f6 | tr -d 'v')
-    
+    LATEST_VERSION=$(curl -sL "${PROXY}https://github.com/zhboner/realm/releases" | grep -oE '/zhboner/realm/releases/tag/v[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | cut -d'/' -f6 | tr -d 'v')
+
     # 版本号验证
     if [[ -z "$LATEST_VERSION" || ! "$LATEST_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         log "版本检测失败，使用备用版本2.7.0"
@@ -180,7 +419,7 @@ deploy_realm() {
     fi
 
     # 下载最新版本
-    DOWNLOAD_URL="https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-x86_64-unknown-linux-gnu.tar.gz"
+    DOWNLOAD_URL="${PROXY}https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-x86_64-unknown-linux-gnu.tar.gz"
     echo -e "${BLUE}▶ 正在下载 Realm v${LATEST_VERSION}...${NC}"
     if ! wget --show-progress -qO realm.tar.gz "$DOWNLOAD_URL"; then
         log "安装失败：下载错误"
@@ -515,10 +754,22 @@ main_menu() {
 
     # 处理跳过更新检查参数
     local skip_update=false
-    if [[ "$1" == "--no-update" ]]; then
-        skip_update=true
-        shift
+    local skip_proxy=false
+    for arg in "$@"; do
+        case "$arg" in
+            --no-update) skip_update=true ;;
+            --no-proxy) skip_proxy=true ;;
+        esac
+    done
+
+    # 配置代理（首次运行）
+    if ! $skip_proxy; then
+        setup_proxy
+    else
+        init_urls
     fi
+
+    sleep 1
 
     # 首次运行检查更新
     if ! $skip_update; then
@@ -526,6 +777,14 @@ main_menu() {
     fi
 
     while true; do
+        # 显示代理状态
+        local proxy_status
+        if [[ -n "$PROXY" ]]; then
+            proxy_status="${GREEN}已启用${NC} (${CYAN}${PROXY}${NC})"
+        else
+            proxy_status="${YELLOW}未启用${NC}"
+        fi
+
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "                ${BLUE}Realm 高级管理脚本 v$CURRENT_VERSION"
@@ -533,18 +792,20 @@ main_menu() {
         echo -e "        修改内容:1.基本重做了脚本"
         echo -e "                 2.新增了自动更新脚本"
         echo -e "                 3.realm支持检测最新版本"
+        echo -e "                 4.新增中国IP检测与GitHub反代支持"
         echo -e "    (1)安装前请先更新系统软件包，缺少命令可能无法安装"
         echo -e "    (2)如果启动失败请检查 /root/realm/config.toml下有无多余配置或者卸载后重新配置"
         echo -e "    (3)该脚本只在debian系统下测试，未做其他系统适配，安装命令有别，可能无法启动。如若遇到问题，请自行解决"
         echo -e "    仓库：https://github.com/qqrrooty/EZrealm"
         echo -e "    2025/4/1 更新：有人反馈该新版本添加规则过多后无法启动，如果遇到问题，可以尝试回退老版本（大概率是备注问题）"
         echo -e "        删除该脚本 rm realm.sh"
-        echo -e "        运行 wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2024.sh && chmod +x realm.sh && ./realm.sh"
-        echo -e "        或者 wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2025.sh && chmod +x realm.sh && ./realm.sh${NC}"
+        echo -e "        运行 wget -N ${PROXY}https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2024.sh && chmod +x realm.sh && ./realm.sh"
+        echo -e "        或者 wget -N ${PROXY}https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm-2025.sh && chmod +x realm.sh && ./realm.sh${NC}"
         echo -e "${YELLOW}▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂﹍▂${NC}"
         echo -e "  "
         echo -e "${YELLOW}服务状态：$(service_control status)${NC}"
         echo -e "${YELLOW}安装状态：$(check_installed)${NC}"
+        echo -e "${YELLOW}代理状态：${proxy_status}${NC}"
         echo -e "  "
         echo -e "${YELLOW}------------------${NC}"
         echo "1. 安装/更新 Realm"
@@ -561,6 +822,7 @@ main_menu() {
         echo "9. 查看日志"
         echo -e "${YELLOW}------------------${NC}"
         echo "10. 完全卸载"
+        echo "11. 代理设置"
         echo -e "${YELLOW}------------------${NC}"
         echo "0. 退出脚本"
         echo -e "${YELLOW}------------------${NC}"
@@ -575,11 +837,11 @@ main_menu() {
             6) service_control stop ;;
             7) service_control restart ;;
             8) manage_cron ;;
-            9) 
+            9)
                 echo -e "\n${BLUE}最近日志：${NC}"
-                tail -n 10 "$LOG_FILE" 
+                tail -n 10 "$LOG_FILE"
                 ;;
-            10) 
+            10)
                 read -rp "确认完全卸载？(y/n): " confirm
                 if [[ "$confirm" == "y" ]]; then
                     uninstall
@@ -588,7 +850,8 @@ main_menu() {
                     exit 0
                 fi
                 ;;
-            0) exit 0 
+            11) manage_proxy ;;
+            0) exit 0
             ;;
             *) echo -e "${RED}无效选项！${NC}" ;;
         esac
