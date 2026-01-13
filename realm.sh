@@ -269,15 +269,28 @@ init_check() {
         exit 1
     fi
 
-    # 检查curl安装
+    # 检查并安装必要工具
+    local missing_tools=()
+
     if ! command -v curl &> /dev/null; then
-        echo -e "${YELLOW}▶ 正在安装curl工具...${NC}"
+        missing_tools+=("curl")
+    fi
+    if ! command -v wget &> /dev/null; then
+        missing_tools+=("wget")
+    fi
+
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        echo -e "${YELLOW}▶ 正在安装必要工具: ${missing_tools[*]}...${NC}"
         if command -v apt-get &> /dev/null; then
-            apt-get update && apt-get install -y curl
+            apt-get update && apt-get install -y "${missing_tools[@]}"
         elif command -v yum &> /dev/null; then
-            yum install -y curl
+            yum install -y "${missing_tools[@]}"
+        elif command -v dnf &> /dev/null; then
+            dnf install -y "${missing_tools[@]}"
+        elif command -v pacman &> /dev/null; then
+            pacman -Sy --noconfirm "${missing_tools[@]}"
         else
-            echo -e "${RED}✖ 无法安装curl，请手动安装${NC}"
+            echo -e "${RED}✖ 无法自动安装工具，请手动安装: ${missing_tools[*]}${NC}"
             exit 1
         fi
     fi
@@ -396,12 +409,55 @@ perform_update() {
 }
 
 # ========================================
+# 架构检测
+# ========================================
+detect_arch() {
+    local arch
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64|amd64)
+            echo "x86_64-unknown-linux-gnu"
+            ;;
+        aarch64|arm64)
+            echo "aarch64-unknown-linux-gnu"
+            ;;
+        armv7l|armhf)
+            echo "armv7-unknown-linux-gnueabihf"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+# ========================================
+# 获取已安装的 Realm 版本
+# ========================================
+get_installed_version() {
+    if [[ -x "$REALM_DIR/realm" ]]; then
+        "$REALM_DIR/realm" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+    else
+        echo ""
+    fi
+}
+
+# ========================================
 # 核心功能模块
 # ========================================
 deploy_realm() {
     log "开始安装Realm"
     echo -e "${BLUE}▶ 正在安装Realm...${NC}"
-    
+
+    # 检测系统架构
+    local arch_suffix
+    arch_suffix=$(detect_arch)
+    if [[ -z "$arch_suffix" ]]; then
+        echo -e "${RED}✖ 不支持的系统架构: $(uname -m)${NC}"
+        echo -e "${YELLOW}  支持的架构: x86_64, aarch64, armv7l${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}✓ 检测到系统架构: $(uname -m) → ${arch_suffix}${NC}"
+
     mkdir -p "$REALM_DIR"
     cd "$REALM_DIR" || exit 1
 
@@ -418,8 +474,22 @@ deploy_realm() {
         echo -e "${GREEN}✓ 检测到最新版本 v${LATEST_VERSION}${NC}"
     fi
 
+    # 检查是否需要更新
+    local installed_version
+    installed_version=$(get_installed_version)
+    if [[ -n "$installed_version" ]]; then
+        echo -e "${CYAN}  当前已安装版本: v${installed_version}${NC}"
+        if [[ "$installed_version" == "$LATEST_VERSION" ]]; then
+            read -rp "已是最新版本，是否重新安装？(y/N): " reinstall
+            if [[ ! "$reinstall" =~ ^[Yy]$ ]]; then
+                echo "已取消安装。"
+                return 0
+            fi
+        fi
+    fi
+
     # 下载最新版本
-    DOWNLOAD_URL="${PROXY}https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-x86_64-unknown-linux-gnu.tar.gz"
+    DOWNLOAD_URL="${PROXY}https://github.com/zhboner/realm/releases/download/v${LATEST_VERSION}/realm-${arch_suffix}.tar.gz"
     echo -e "${BLUE}▶ 正在下载 Realm v${LATEST_VERSION}...${NC}"
     if ! wget --show-progress -qO realm.tar.gz "$DOWNLOAD_URL"; then
         log "安装失败：下载错误"
@@ -462,34 +532,41 @@ EOF
     echo -e "${GREEN}✔ 安装完成！${NC}"
 }
 
+# 打印规则表头
+print_rules_header() {
+    echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
+    echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}${YELLOW}"
+    printf "%-5s| %-30s| %-40s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
+    echo -e "${NC}${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
+}
+
 # 查看转发规则
 show_rules() {
-  echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-30s| %-40s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
-  echo -e "${NC}${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
-    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 listen 的行，表示转发规则的起始行
-    local lines=($(grep -n 'listen =' /root/realm/config.toml))
-    
+    print_rules_header
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo -e "${YELLOW}配置文件不存在${NC}"
+        return
+    fi
+
+    local IFS=$'\n'
+    local lines=($(grep -n 'listen =' "$CONFIG_FILE" 2>/dev/null))
+
     if [ ${#lines[@]} -eq 0 ]; then
-  echo -e "没有发现任何转发规则。"
+        echo -e "没有发现任何转发规则。"
         return
     fi
 
     local index=1
     for line in "${lines[@]}"; do
-        local line_number=$(echo $line | cut -d ':' -f 1)
-        local listen_info=$(sed -n "${line_number}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "$((line_number + 1))p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remark=$(sed -n "$((line_number-1))p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        
-        local listen_ip_port=$listen_info
-        local remote_ip_port=$remote_info
-        
-    printf "%-4s| %-24s| %-34s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
-        let index+=1
+        local line_number=$(echo "$line" | cut -d ':' -f 1)
+        local listen_info=$(sed -n "${line_number}p" "$CONFIG_FILE" | cut -d '"' -f 2)
+        local remote_info=$(sed -n "$((line_number + 1))p" "$CONFIG_FILE" | cut -d '"' -f 2)
+        local remark=$(sed -n "$((line_number-1))p" "$CONFIG_FILE" | grep "^# 备注:" | cut -d ':' -f 2)
+
+        printf "%-4s| %-24s| %-34s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+        echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
+        ((index++))
     done
 }
 
@@ -509,6 +586,16 @@ add_rule() {
         # 输入验证
         if ! [[ "$local_port" =~ ^[0-9]+$ ]] || ! [[ "$remote_port" =~ ^[0-9]+$ ]]; then
             echo -e "${RED}✖ 端口必须为数字！${NC}"
+            continue
+        fi
+
+        # 端口范围验证
+        if (( local_port < 1 || local_port > 65535 )); then
+            echo -e "${RED}✖ 本地端口必须在 1-65535 范围内！${NC}"
+            continue
+        fi
+        if (( remote_port < 1 || remote_port > 65535 )); then
+            echo -e "${RED}✖ 目标端口必须在 1-65535 范围内！${NC}"
             continue
         fi
 
@@ -548,11 +635,11 @@ add_rule() {
                 ;;
         esac
 
-        # 写入配置文件（关键修正点）
-        sudo tee -a "$CONFIG_FILE" > /dev/null <<EOF
+        # 写入配置文件
+        cat >> "$CONFIG_FILE" <<EOF
 
 [[endpoints]]
-# 备注: $remark 
+# 备注: $remark
 listen = "$listen_addr"
 remote = "$remote_ip:$remote_port"
 EOF
@@ -565,7 +652,7 @@ EOF
         fi
 
         # 重启服务
-        sudo systemctl restart realm.service
+        systemctl restart realm.service
         log "规则已添加: $listen_addr → $remote_ip:$remote_port"
         echo -e "${GREEN}✔ 添加成功！${NC}"
         
@@ -575,14 +662,16 @@ EOF
 }
 
 delete_rule() {
-  echo -e "                   ${YELLOW}当前 Realm 转发规则${NC}                   "
-  echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}${YELLOW}"
-  printf "%-5s| %-30s| %-40s| %-20s\n" "序号" "   本地地址:端口 " "   目标地址:端口 " "备注"
-  echo -e "${NC}${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
-    local IFS=$'\n' # 设置IFS仅以换行符作为分隔符
-    # 搜索所有包含 [[endpoints]] 的行，表示转发规则的起始行
-    local lines=($(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml))
-    
+    print_rules_header
+
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo -e "${YELLOW}配置文件不存在${NC}"
+        return
+    fi
+
+    local IFS=$'\n'
+    local lines=($(grep -n '^\[\[endpoints\]\]' "$CONFIG_FILE" 2>/dev/null))
+
     if [ ${#lines[@]} -eq 0 ]; then
         echo "没有发现任何转发规则。"
         return
@@ -590,87 +679,93 @@ delete_rule() {
 
     local index=1
     for line in "${lines[@]}"; do
-        local line_number=$(echo $line | cut -d ':' -f 1)
+        local line_number=$(echo "$line" | cut -d ':' -f 1)
         local remark_line=$((line_number + 1))
         local listen_line=$((line_number + 2))
         local remote_line=$((line_number + 3))
 
-        local remark=$(sed -n "${remark_line}p" /root/realm/config.toml | grep "^# 备注:" | cut -d ':' -f 2)
-        local listen_info=$(sed -n "${listen_line}p" /root/realm/config.toml | cut -d '"' -f 2)
-        local remote_info=$(sed -n "${remote_line}p" /root/realm/config.toml | cut -d '"' -f 2)
+        local remark=$(sed -n "${remark_line}p" "$CONFIG_FILE" | grep "^# 备注:" | cut -d ':' -f 2)
+        local listen_info=$(sed -n "${listen_line}p" "$CONFIG_FILE" | cut -d '"' -f 2)
+        local remote_info=$(sed -n "${remote_line}p" "$CONFIG_FILE" | cut -d '"' -f 2)
 
-        local listen_ip_port=$listen_info
-        local remote_ip_port=$remote_info
-
-    printf "%-4s| %-24s| %-34s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
-    echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
-        let index+=1
+        printf "%-4s| %-24s| %-34s| %-20s\n" " $index" "$listen_info" "$remote_info" "$remark"
+        echo -e "${BLUE}---------------------------------------------------------------------------------------------------------${NC}"
+        ((index++))
     done
 
-
+    echo ""
     echo "请输入要删除的转发规则序号，直接按回车返回主菜单。"
-    read -p "选择: " choice
+    read -rp "选择: " choice
     if [ -z "$choice" ]; then
         echo "返回主菜单。"
         return
     fi
 
     if ! [[ $choice =~ ^[0-9]+$ ]]; then
-        echo "无效输入，请输入数字。"
+        echo -e "${RED}无效输入，请输入数字。${NC}"
         return
     fi
 
-    if [ $choice -lt 1 ] || [ $choice -gt ${#lines[@]} ]; then
-        echo "选择超出范围，请输入有效序号。"
+    if [ "$choice" -lt 1 ] || [ "$choice" -gt ${#lines[@]} ]; then
+        echo -e "${RED}选择超出范围，请输入有效序号。${NC}"
         return
-  fi
+    fi
 
-  local chosen_line=${lines[$((choice-1))]}
-  local start_line=$(echo $chosen_line | cut -d ':' -f 1)
+    # 二次确认
+    local chosen_line=${lines[$((choice-1))]}
+    local start_line=$(echo "$chosen_line" | cut -d ':' -f 1)
+    local listen_info=$(sed -n "$((start_line + 2))p" "$CONFIG_FILE" | cut -d '"' -f 2)
+    local remote_info=$(sed -n "$((start_line + 3))p" "$CONFIG_FILE" | cut -d '"' -f 2)
 
-  # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
-  local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' /root/realm/config.toml | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
+    echo -e "${YELLOW}即将删除规则: ${listen_info} → ${remote_info}${NC}"
+    read -rp "确认删除？(y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "已取消删除。"
+        return
+    fi
 
-  if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
-    # 如果没有找到下一个 [[endpoints]]，则删除到文件末尾
-    end_line=$(wc -l < /root/realm/config.toml)
-  else
-    # 如果找到了下一个 [[endpoints]]，则删除到它的前一行
-    end_line=$((next_endpoints_line - 1))
-  fi
+    # 找到下一个 [[endpoints]] 行，确定删除范围的结束行
+    local next_endpoints_line=$(grep -n '^\[\[endpoints\]\]' "$CONFIG_FILE" | grep -A 1 "^$start_line:" | tail -n 1 | cut -d ':' -f 1)
 
-  # 使用 sed 删除指定行范围的内容
-  sed -i "${start_line},${end_line}d" /root/realm/config.toml
+    if [ -z "$next_endpoints_line" ] || [ "$next_endpoints_line" -le "$start_line" ]; then
+        end_line=$(wc -l < "$CONFIG_FILE")
+    else
+        end_line=$((next_endpoints_line - 1))
+    fi
 
-  # 检查并删除可能多余的空行
-  sed -i '/^\s*$/d' /root/realm/config.toml
+    # 使用 sed 删除指定行范围的内容
+    sed -i "${start_line},${end_line}d" "$CONFIG_FILE"
 
-  echo "转发规则及其备注已删除。"
+    # 检查并删除可能多余的空行
+    sed -i '/^\s*$/d' "$CONFIG_FILE"
 
-  # 重启服务
-  sudo systemctl restart realm.service
+    log "删除规则: $listen_info → $remote_info"
+    echo -e "${GREEN}✔ 转发规则已删除。${NC}"
+
+    # 重启服务
+    systemctl restart realm.service
 }
 
 service_control() {
     case $1 in
         start)
-            sudo systemctl unmask realm.service
-            sudo systemctl daemon-reload
-            sudo systemctl restart realm.service
-            sudo systemctl enable realm.service
+            systemctl unmask realm.service
+            systemctl daemon-reload
+            systemctl restart realm.service
+            systemctl enable realm.service
             log "启动服务"
             echo -e "${GREEN}✔ 服务已启动${NC}"
             ;;
         stop)
-            sudo systemctl stop realm
+            systemctl stop realm
             log "停止服务"
             echo -e "${YELLOW}⚠ 服务已停止${NC}"
             ;;
         restart)
-            sudo systemctl unmask realm.service
-            sudo systemctl daemon-reload
-            sudo systemctl restart realm.service
-            sudo systemctl enable realm.service
+            systemctl unmask realm.service
+            systemctl daemon-reload
+            systemctl restart realm.service
+            systemctl enable realm.service
             log "重启服务"
             echo -e "${GREEN}✔ 服务已重启${NC}"
             ;;
@@ -739,7 +834,13 @@ uninstall() {
 # ========================================
 check_installed() {
     if [[ -f "$REALM_DIR/realm" && -f "$SERVICE_FILE" ]]; then
-        echo -e "${GREEN}已安装${NC}"
+        local version
+        version=$(get_installed_version)
+        if [[ -n "$version" ]]; then
+            echo -e "${GREEN}已安装${NC} (v${version})"
+        else
+            echo -e "${GREEN}已安装${NC}"
+        fi
     else
         echo -e "${RED}未安装${NC}"
     fi
